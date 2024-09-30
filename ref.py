@@ -85,11 +85,14 @@ class Pedestrian:
 
         total_fx, total_fy = goal_fx + wall_fx, goal_fy + wall_fy
 
+        repulse_fx, repulse_fy = 0, 0
         for other in pedestrians:
-            if other != self:
-                repulse_fx, repulse_fy = self.calculate_repulsion(other)
-                total_fx += repulse_fx
-                total_fy += repulse_fy
+            if other is not self:
+                r = self.calculate_repulsion(other)
+                repulse_fx += r[0]
+                repulse_fy += r[1]
+        total_fx += repulse_fx
+        total_fy += repulse_fy
 
         # Update velocity based on forces
         self.vx += total_fx
@@ -147,5 +150,5 @@ class Simulation:
 
 # Main entry point
 if __name__ == "__main__":
-    sim = Simulation(num_pedestrians=2)
+    sim = Simulation(num_pedestrians=200)
     sim.run()

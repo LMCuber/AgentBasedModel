@@ -4,7 +4,7 @@ import sys
 import cProfile
 import random
 from dataclasses import dataclass
-from math import e, cos, log10, floor
+from math import e, cos, log10, floor, hypot
 
 
 # functions
@@ -38,7 +38,7 @@ class Walk:
 
 
 class Pedestrian:
-    N = 20
+    N = 200
     def __init__(self, x, y):
         self.radius = 5
         self.xvel = clamp(random.gauss(walk.mu, walk.sigma), walk.min, walk.max)
@@ -61,19 +61,24 @@ class Pedestrian:
         self.e = (self.dest - self.pos).normalize()
         desired_vel = self.v0 * self.e
         delta_vel = desired_vel - self.vel
-        self.dacc = 1 / self.t * delta_vel
-        print("drive", self.dacc)
+        return 1 / self.t * delta_vel
+        # dx = self.dest.x - self.pos.x
+        # dy = self.dest.y - self.pos.y
+        # dist = hypot(dx, dy)
+        # fx = (dx / (dist + SMALL)) * 0.3 * dist
+        # fy = (dy / (dist + SMALL)) * 0.3 * dist
+        # return Vec2(fx, fy)
     
     def calculate_repulsion(self, other):
-        r_ab = self.radius + other.radius
-        d_ab = (other.pos - self.pos).length()
-        normal = (other.pos - self.pos).normalize()
-        cosphi = -normal * self.e
-        # f = self.A * e ** ((r_ab - d_ab) / (self.B)) * normal * (self.labda + (1 - self.labda) * ((1 + cosphi) / 2))
-        dx = other.pos.x - self.pos.x
-        dy = other.pos.y - self.pos.y
-        if d_ab < 20:
-            self.raccs += Vec2(-dx, -dy)
+        dx = self.pos.x - other.pos.x
+        dy = self.pos.y - other.pos.y
+        dist = hypot(dx, dy)
+        if dist < 30:
+            force = 10_000 / ((dist + SMALL) ** 2)
+            fx = (dx / (dist + SMALL)) * force
+            fy = (dy / (dist + SMALL)) * force
+            return Vec2(fx, fy)
+        return Vec2(0, 0)
 
     def draw(self):
         pygame.draw.aacircle(WIN, pygame.Color("#FDFBD4"), self.pos, self.radius)
@@ -81,26 +86,26 @@ class Pedestrian:
         #
         repr_f = ", ".join([str(sigfig(x, 2)) for x in self.raccs])
         surf = font.render(repr_f, True, BLACK)
-        WIN.blit(surf, self.pos)
+        # WIN.blit(surf, self.pos)
     
-    def newton(self):
+    def update(self):
+        self.dest = Vec2(pygame.mouse.get_pos())
+        # calculations
+        self.acc = Vec2(0, 0)
+        self.dacc = Vec2(0, 0)
+        self.raccs = Vec2(0, 0)
+        #
+        self.dacc += self.calculate_drive()
+        for other in all_pedestrians:
+            if other is not self:
+                self.raccs += self.calculate_repulsion(other)
+        #
         self.acc = self.dacc + self.raccs
         self.vel += self.acc
         speed = self.vel.length()
-        if speed > 1:
+        if speed > 6:
             self.vel = self.vel / speed
         self.pos += self.vel
-    
-    def update(self):
-        # init
-        self.dest = pygame.mouse.get_pos()
-        self.raccs = Vec2(0, 0)
-        # calculations
-        self.calculate_drive()
-        for other in all_pedestrians:
-            if other is not self:
-                self.calculate_repulsion(other)
-        self.newton()
         # rendering
         try:
             self.draw()
