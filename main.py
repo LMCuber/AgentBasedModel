@@ -38,13 +38,17 @@ class Walk:
 
 
 class Pedestrian:
-    N = 200
+    N = 100
     def __init__(self, x, y):
         self.radius = 5
         self.xvel = clamp(random.gauss(walk.mu, walk.sigma), walk.min, walk.max)
         self.pos = Vec2(x, y)
         self.gate = random.randrange(Gate.N)
         self.dest = all_gates[self.gate].xy
+        if x == 70:
+            self.dest = Vec2(WIDTH - 70, HEIGHT / 2)
+        else:
+            self.dest = Vec2(70, HEIGHT / 2)
         # driving term
         self.v0 = 10
         self.vel = Vec2(random.uniform(-0.3, 0.3), random.random() * 2 - 1)
@@ -58,16 +62,16 @@ class Pedestrian:
         self.labda = 0.4
     
     def calculate_drive(self):
-        self.e = (self.dest - self.pos).normalize()
-        desired_vel = self.v0 * self.e
-        delta_vel = desired_vel - self.vel
-        return 1 / self.t * delta_vel
-        # dx = self.dest.x - self.pos.x
-        # dy = self.dest.y - self.pos.y
-        # dist = hypot(dx, dy)
-        # fx = (dx / (dist + SMALL)) * 0.3 * dist
-        # fy = (dy / (dist + SMALL)) * 0.3 * dist
-        # return Vec2(fx, fy)
+        # self.e = (self.dest - self.pos).normalize()
+        # desired_vel = self.v0 * self.e
+        # delta_vel = desired_vel - self.vel
+        # return 1 / self.t * delta_vel
+        dx = self.dest.x - self.pos.x
+        dy = self.dest.y - self.pos.y
+        dist = hypot(dx, dy)
+        fx = (dx / (dist + SMALL)) * 0.3 * dist
+        fy = (dy / (dist + SMALL)) * 0.3 * dist
+        return Vec2(fx, fy)
     
     def calculate_repulsion(self, other):
         dx = self.pos.x - other.pos.x
@@ -89,7 +93,7 @@ class Pedestrian:
         # WIN.blit(surf, self.pos)
     
     def update(self):
-        self.dest = Vec2(pygame.mouse.get_pos())
+        # self.dest = Vec2(pygame.mouse.get_pos())
         # calculations
         self.acc = Vec2(0, 0)
         self.dacc = Vec2(0, 0)
@@ -154,7 +158,10 @@ for i in range(Gate.N):
     gate = Gate(i * 180 + 140, 50)
     all_gates.append(gate)
 for _ in range(Pedestrian.N):
-    ped = Pedestrian(WIDTH / 2 + random.randint(-200, 200), HEIGHT - 50)
+    ped = Pedestrian(70, HEIGHT / 2)
+    all_pedestrians.append(ped)
+for _ in range(Pedestrian.N):
+    ped = Pedestrian(WIDTH - 70, HEIGHT / 2)
     all_pedestrians.append(ped)
 
 
