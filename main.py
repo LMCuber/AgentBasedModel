@@ -54,12 +54,12 @@ class Pedestrian:
         self.vel = Vec2(random.uniform(-0.3, 0.3), random.random() * 2 - 1)
         self.acc = Vec2(0, 0)
         self.dacc = Vec2(0, 0)
-        self.raccs = Vec2(0, 0)
-        self.t = 10
+        self.racc = Vec2(0, 0)
+        # driving term
+        self.r = all_gates[self.gate].xy
+        self.tau = 0.5
+        self.v0 = 3
         # repulsive term
-        self.A = 5
-        self.B = 0.1
-        self.labda = 0.4
     
     def calculate_drive(self):
         # self.e = (self.dest - self.pos).normalize()
@@ -74,47 +74,35 @@ class Pedestrian:
         return Vec2(fx, fy)
     
     def calculate_repulsion(self, other):
-        dx = self.pos.x - other.pos.x
-        dy = self.pos.y - other.pos.y
-        dist = hypot(dx, dy)
-        if dist < 30:
-            force = 10_000 / ((dist + SMALL) ** 2)
-            fx = (dx / (dist + SMALL)) * force
-            fy = (dy / (dist + SMALL)) * force
-            return Vec2(fx, fy)
+        pass
+
+    def calculate_repulsion_wall(self):
         return Vec2(0, 0)
 
     def draw(self):
         pygame.draw.aacircle(WIN, pygame.Color("#FDFBD4"), self.pos, self.radius)
         pygame.draw.aacircle(WIN, BLACK, self.pos, 5, 1)
-        #
-        repr_f = ", ".join([str(sigfig(x, 2)) for x in self.raccs])
-        surf = font.render(repr_f, True, BLACK)
-        # WIN.blit(surf, self.pos)
     
     def update(self):
         # self.dest = Vec2(pygame.mouse.get_pos())
         # calculations
+        print(i)
         self.acc = Vec2(0, 0)
         self.dacc = Vec2(0, 0)
-        self.raccs = Vec2(0, 0)
+        self.wacc = Vec2(0, 0)
+        # self.racc = Vec2(0, 0)
         #
-        self.dacc += self.calculate_drive()
-        for other in all_pedestrians:
-            if other is not self:
-                self.raccs += self.calculate_repulsion(other)
+        self.dacc = self.calculate_drive()
+        # self.wacc += self.calculate_repulsion_wall()
+        # for other in all_pedestrians:
+        #     if other is not self:
+        #         self.racc += self.calculate_repulsion(other)
         #
-        self.acc = self.dacc + self.raccs
+        self.acc = self.dacc + self.racc
         self.vel += self.acc
-        speed = self.vel.length()
-        if speed > 6:
-            self.vel = self.vel / speed
         self.pos += self.vel
         # rendering
-        try:
-            self.draw()
-        except Exception:
-            pass
+        self.draw()
     
 
 class Gate:
@@ -169,7 +157,7 @@ def main():
     # mainloop
     running = __name__ == "__main__"
     while running:
-        clock.tick(TARG_FPS)
+        clock.tick(5)
     
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -186,9 +174,8 @@ def main():
         for gate in all_gates:
             gate.update()
 
-
-        for ped in all_pedestrians:
-            ped.update()
+        for i, ped in enumerate(all_pedestrians):
+            ped.update(i)
     
         # flip the display
         pygame.display.flip()
