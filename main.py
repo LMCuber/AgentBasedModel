@@ -58,7 +58,7 @@ files = open("file.txt", "w")
 
 
 class Pedestrian:
-    N = 50
+    N = 300
     def __init__(self, x, y, color=None):
         # init
         self.radius = 5
@@ -81,7 +81,7 @@ class Pedestrian:
         self.B = 0.1
         self.labda = 0.4
         # obstacle term
-        self.r0 = 5
+        self.r0 = 4
         # interactive term
         self.B = 4
     
@@ -95,7 +95,7 @@ class Pedestrian:
         total_f = Vec2(0, 0)
         for ob in all_obstacles:
             for n, d in ob.get_distances(self):
-                f = exp(-d / self.r0) * n
+                f = exp(-d / self.r0) * n * 3
                 total_f += f
         return total_f
     
@@ -125,7 +125,7 @@ class Pedestrian:
         pygame.draw.aacircle(WIN, self.color, self.pos, self.radius)
         pygame.draw.aacircle(WIN, BLACK, self.pos, 5, 1)
         #
-        m = 5
+        m = 3
         pygame.draw.line(WIN, (0, 255, 0), self.pos, self.pos + self.vel * m, 2)
         pygame.draw.line(WIN, (255, 140, 0), self.pos, self.pos + self.acc * m * 7, 2)
     
@@ -177,7 +177,7 @@ class Polygon(AbstractObstacle):
         self.draw()
     
     def draw(self):
-        pygame.draw.lines(WIN, BLACK, True, self.points)
+        pygame.draw.lines(WIN, BLACK, True, self.points, 5)
     
     def get_distances(self, other):
         for i in range(len(self.points)):
@@ -205,7 +205,7 @@ class Revolver(AbstractObstacle):
             arm = self.l * Vec2(cos(a), sin(a))
             p2 = self.p1 + arm
             self.p2s[i] = p2
-            pygame.draw.line(WIN, BLACK, self.p1, p2)
+            pygame.draw.line(WIN, BLACK, self.p1, p2, 5)
             
     def get_distances(self, other):
         for p2 in self.p2s:
