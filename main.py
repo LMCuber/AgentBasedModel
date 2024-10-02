@@ -4,11 +4,29 @@ import sys
 import cProfile
 import random
 from dataclasses import dataclass
-from math import e, cos, log10, floor, exp
+from math import e, cos, sin, log10, floor, exp, pi
 from enum import Enum
 
 
 # functions
+def dist_point_to_line_segment(p1, p2, pos):
+    line_vec = p2 - p1
+    pnt_vec = pos - Vec2(p1)
+    line_len = line_vec.length()
+    line_unitvec = line_vec.normalize()
+    pnt_vec_scaled = pnt_vec / line_len
+    t = line_unitvec.dot(pnt_vec_scaled)    
+    if t < 0.0:
+        t = 0.0
+    elif t > 1.0:
+        t = 1.0
+    nearest = line_vec * t
+    dist = (nearest - pnt_vec).length()
+    nearest = nearest + p1
+    #
+    normal = (pos - nearest)
+    return (normal, dist)
+
 def clamp(value, mn, mx):
     return max(mn, min(value, mx))
 
@@ -40,18 +58,15 @@ files = open("file.txt", "w")
 
 
 class Pedestrian:
-    N = 200
-    passed_right = 0
-    passed_left = 0
+    N = 50
     def __init__(self, x, y, color=None):
         # init
-        self.passed = False
-        self.pass_right = x == 50
         self.radius = 5
         self.pos = Vec2(x, y)
         self.gate = random.randrange(Gate.N)
         self.dest = Vec2(WIDTH - 50, HEIGHT / 2)
-        self.color = color if color is not None else pygame.Color(pygame.Color("#FDFBD4"))
+        self.color = color if color is not None else pygame.Color("#FDFBD4")
+
         # driving term
         self.v0 = clamp(random.gauss(walk.mu, walk.sigma), walk.min, walk.max)*2
         self.v0 = 3
@@ -66,8 +81,9 @@ class Pedestrian:
         self.B = 0.1
         self.labda = 0.4
         # obstacle term
-        self.r0 = 4
-        self.B = 3
+        self.r0 = 5
+        # interactive term
+        self.B = 4
     
     def calculate_drive_force(self):
         self.e = (self.dest - self.pos) / (self.dest - self.pos).length()
@@ -78,9 +94,9 @@ class Pedestrian:
     def calculate_obstacle_force(self):
         total_f = Vec2(0, 0)
         for ob in all_obstacles:
-            n, d = ob.get_distance(self)
-            f = exp(-d / self.r0) * n
-            total_f += f
+            for n, d in ob.get_distances(self):
+                f = exp(-d / self.r0) * n
+                total_f += f
         return total_f
     
     def calculate_interactive_force(self):
@@ -102,14 +118,6 @@ class Pedestrian:
         self.acc = self.dacc + self.oacc + self.iacc
         self.vel += self.acc
         self.pos += self.vel * dt
-        #
-        if not self.passed:
-            if self.pass_right and self.pos.x >= WIDTH / 2:
-                self.passed = True
-                Pedestrian.passed_right += 1
-            if not self.pass_right and self.pos.x <= WIDTH / 2:
-                self.passed = True
-                Pedestrian.passed_left += 1
         # draw
         self.draw()
     
@@ -117,9 +125,9 @@ class Pedestrian:
         pygame.draw.aacircle(WIN, self.color, self.pos, self.radius)
         pygame.draw.aacircle(WIN, BLACK, self.pos, 5, 1)
         #
-        m = 3
+        m = 5
         pygame.draw.line(WIN, (0, 255, 0), self.pos, self.pos + self.vel * m, 2)
-        pygame.draw.line(WIN, (0, 0, 255), self.pos, self.pos + self.acc * m, 2)
+        pygame.draw.line(WIN, (255, 140, 0), self.pos, self.pos + self.acc * m * 7, 2)
     
 
 class Gate:
@@ -138,7 +146,7 @@ class Gate:
 
 
 class AbstractObstacle:
-    def update(self):
+    def draw(self):
         WIN.blit(self.image, self.rect)
 
 
@@ -149,48 +157,59 @@ class Obstacle(AbstractObstacle):
         pygame.draw.circle(self.image, BLACK, [s / 2 for s in self.image.size], self.image.width / 2, 2)
         self.rect = self.image.get_frect(topleft=(x, y))
     
+    def update(self):
+        self.draw()
+    
     @property
     def xy(self):
         return Vec2(self.rect.center)
     
-    def get_distance(self, other):
+    def get_distances(self, other):
         normal = (other.pos - self.xy)
-        return (normal, normal.length())
+        return [(normal, normal.length())]
     
 
-class Wall(AbstractObstacle):
-    def __init__(self, p1, p2):
-        self.p1 = Vec2(p1) 
-        self.p2 = Vec2(p2)
-        self.w = p2[0] - p1[0] + 1
-        self.h = p2[1] - p1[1] + 1
-        self.image = pygame.Surface((self.w, self.h))
-        pygame.draw.line(self.image, BLACK, self.p1, self.p2)
-        self.rect = self.image.get_rect(topleft=p1)
+class Polygon(AbstractObstacle):
+    def __init__(self, *points):
+        self.points = [Vec2(p) for p in points]
     
-    @property
-    def xy(self):
-        return Vec2(self.rect.center)
+    def update(self):
+        self.draw()
     
-    def get_distance(self, other):
-        line_vec = self.p2 - self.p1
-        pnt_vec = other.pos - Vec2(self.p1)
-        line_len = line_vec.length()
-        line_unitvec = line_vec.normalize()
-        pnt_vec_scaled = pnt_vec / line_len
-        t = line_unitvec.dot(pnt_vec_scaled)    
-        if t < 0.0:
-            t = 0.0
-        elif t > 1.0:
-            t = 1.0
-        nearest = line_vec * t
-        dist = (nearest - pnt_vec).length()
-        nearest = nearest + self.p1
-        #
-        normal = (other.pos - nearest)
-        # pygame.draw.line(WIN, (255, 0, 0), nearest, other.pos)
-        return (normal, dist)
+    def draw(self):
+        pygame.draw.lines(WIN, BLACK, True, self.points)
     
+    def get_distances(self, other):
+        for i in range(len(self.points)):
+            p1 = self.points[i]
+            try:
+                p2 = self.points[i + 1]
+            except IndexError:
+                p2 = self.points[0]
+            yield dist_point_to_line_segment(p1, p2, other.pos)
+
+
+class Revolver(AbstractObstacle):
+    def __init__(self, p1, n, l, av):
+        self.p1 = Vec2(p1)
+        self.n = n
+        self.l = l
+        self.av = av
+        self.angle = 0
+        self.p2s = [Vec2(0, 0) for _ in range(self.n)]
+    
+    def update(self):
+        self.angle += self.av
+        for i in range(self.n):
+            a = self.angle + i * (2 * pi) / self.n
+            arm = self.l * Vec2(cos(a), sin(a))
+            p2 = self.p1 + arm
+            self.p2s[i] = p2
+            pygame.draw.line(WIN, BLACK, self.p1, p2)
+            
+    def get_distances(self, other):
+        for p2 in self.p2s:
+            yield dist_point_to_line_segment(self.p1, p2, other.pos)
 
 # colors
 BLACK = (0, 0, 0)
@@ -218,17 +237,18 @@ for _ in range(Pedestrian.N):
     ped = Pedestrian(50, random.randrange(HEIGHT), pygame.Color("#0F4C5C"))
     all_pedestrians.append(ped)
 
-gap = 80
-y = 0
-while True:
-    p1 = (WIDTH / 2, y)
-    y += random.randint(30, 100)
-    p2 = (WIDTH / 2, y)
-    ob = Wall(p1, p2)
-    all_obstacles.append(ob)
-    y += gap
-    if y >= HEIGHT:
-        break
+all_obstacles.append(Revolver((WIDTH / 2, HEIGHT / 2), 4, 80, 0.02))
+xo = 300
+yo = 100
+all_obstacles.append(Polygon(
+    (WIDTH / 2 - xo, HEIGHT / 2 - yo),
+    (WIDTH / 2 + xo, HEIGHT / 2 - yo),
+))
+all_obstacles.append(Polygon(
+    (WIDTH / 2 + xo, HEIGHT / 2 + yo),
+    (WIDTH / 2 - xo, HEIGHT / 2 + yo),
+))
+
 
 
 def main():
@@ -253,15 +273,9 @@ def main():
         for ped in all_pedestrians:
             ped.dest = Vec2(pygame.mouse.get_pos())
             ped.update(1)
-
         for ob in all_obstacles:
-            WIN.blit(ob.image, ob.rect)
+            ob.update()
         
-        surf = font.render(str(Pedestrian.passed_left), True, BLACK)
-        WIN.blit(surf, (WIDTH - 50, HEIGHT - 60))
-        surf = font.render(str(Pedestrian.passed_right), True, BLACK)
-        WIN.blit(surf, (50, HEIGHT - 60))
-
         surf = font.render(str(int(clock.get_fps())), True, BLACK)
         WIN.blit(surf, (10, 10))
     
