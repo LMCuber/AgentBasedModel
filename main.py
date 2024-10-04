@@ -46,6 +46,48 @@ def sigfig(x: float, precision: int):
   
 
 # classes
+class EditorModes(Enum):
+    ERASE = -1
+    POLYGON = 0
+    REVOLVER = 1
+
+
+class Editor:
+    def __init__(self):
+        self.points = []
+        self.mode = EditorModes.POLYGON
+    
+    def process_event(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.button == 1:
+                self.points.append(pygame.mouse.get_pos())
+            elif event.button == 3:
+                if len(self.points) >= 2:
+                    polygon = Polygon(*self.points)
+                    all_obstacles.append(polygon)
+                    self.points.clear()
+        
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_LCTRL:
+                Pedestrian.move = not Pedestrian.move
+                if Pedestrian.move:
+                    Pedestrian.dest = pygame.mouse.get_pos()
+                else:
+                    Pedestrian.dest = None
+    
+    def update(self):
+        print(Pedestrian.dest)
+        m = Vec2(pygame.mouse.get_pos())
+        mod = pygame.key.get_mods()
+        if self.mode == EditorModes.POLYGON:
+            pygame.draw.line(WIN, BLACK, m + Vec2(-30, -30), m + Vec2(-10, -60), 5)
+            if self.points:
+                pygame.draw.lines(WIN, BLACK, False, self.points + [pygame.mouse.get_pos()], 5)
+
+
+editor = Editor()
+
+
 @dataclass
 class Walk:
     mu: float = 1.40
@@ -58,13 +100,15 @@ files = open("file.txt", "w")
 
 
 class Pedestrian:
-    N = 300
+    N = 50
+    move = True
+    dest = None
     def __init__(self, x, y, color=None):
         # init
         self.radius = 5
         self.pos = Vec2(x, y)
         self.gate = random.randrange(Gate.N)
-        self.dest = Vec2(WIDTH - 50, HEIGHT / 2)
+        self.dest = Vec2(50, 50)
         self.color = color if color is not None else pygame.Color("#FDFBD4")
 
         # driving term
@@ -86,7 +130,8 @@ class Pedestrian:
         self.B = 4
     
     def calculate_drive_force(self):
-        self.e = (self.dest - self.pos) / (self.dest - self.pos).length()
+        dest = Pedestrian.dest if Pedestrian.dest is not None else self.dest
+        self.e = (dest - self.pos) / (dest - self.pos).length()
         desired_vel = self.v0 * self.e
         delta_vel = desired_vel - self.vel
         return 1 / self.t * delta_vel
@@ -111,13 +156,14 @@ class Pedestrian:
     
     def update(self, dt):
         # update
-        self.dacc = self.calculate_drive_force()
-        self.oacc = self.calculate_obstacle_force()
-        self.iacc = self.calculate_interactive_force()
-        # newton
-        self.acc = self.dacc + self.oacc + self.iacc
-        self.vel += self.acc
-        self.pos += self.vel * dt
+        if Pedestrian.move:
+            self.dacc = self.calculate_drive_force()
+            self.oacc = self.calculate_obstacle_force()
+            self.iacc = self.calculate_interactive_force()
+            # newton
+            self.acc = self.dacc + self.oacc + self.iacc
+            self.vel += self.acc
+            self.pos += self.vel * dt
         # draw
         self.draw()
     
@@ -177,7 +223,7 @@ class Polygon(AbstractObstacle):
         self.draw()
     
     def draw(self):
-        pygame.draw.lines(WIN, BLACK, True, self.points, 5)
+        pygame.draw.lines(WIN, BLACK, False, self.points, 5)
     
     def get_distances(self, other):
         for i in range(len(self.points)):
@@ -185,7 +231,7 @@ class Polygon(AbstractObstacle):
             try:
                 p2 = self.points[i + 1]
             except IndexError:
-                p2 = self.points[0]
+                continue
             yield dist_point_to_line_segment(p1, p2, other.pos)
 
 
@@ -237,19 +283,6 @@ for _ in range(Pedestrian.N):
     ped = Pedestrian(50, random.randrange(HEIGHT), pygame.Color("#0F4C5C"))
     all_pedestrians.append(ped)
 
-all_obstacles.append(Revolver((WIDTH / 2, HEIGHT / 2), 4, 80, 0.02))
-xo = 300
-yo = 100
-all_obstacles.append(Polygon(
-    (WIDTH / 2 - xo, HEIGHT / 2 - yo),
-    (WIDTH / 2 + xo, HEIGHT / 2 - yo),
-))
-all_obstacles.append(Polygon(
-    (WIDTH / 2 + xo, HEIGHT / 2 + yo),
-    (WIDTH / 2 - xo, HEIGHT / 2 + yo),
-))
-
-
 
 def main():
     # mainloop
@@ -258,6 +291,8 @@ def main():
         dt = clock.tick(TARG_FPS) / 1000 / (1 / 120)
     
         for event in pygame.event.get():
+            editor.process_event(event)
+
             if event.type == pygame.QUIT:
                 running = False
             
@@ -278,6 +313,8 @@ def main():
         
         surf = font.render(str(int(clock.get_fps())), True, BLACK)
         WIN.blit(surf, (10, 10))
+
+        editor.update()
     
         # flip the display
         pygame.display.flip()
