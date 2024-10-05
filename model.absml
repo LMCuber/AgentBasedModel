@@ -1,0 +1,29 @@
+# =======================================
+# agent based model markup language (absml)
+# must have entry point, denoting with a `!` suffix. Multiple not allowed.
+# use [global] for global stats like target fps and stuff
+# =======================================
+
+[global]
+target_fps = 0
+
+["spawnerMain!"]
+line = [[220, 700], [270, 700]]
+wait = 0.1
+limit = 100
+child = "areaBaggage"
+
+[areaBaggage]
+area = [60, 100, 300, 300]
+dimensions = [1, 1]
+wait = 0.01
+child = "areaLounge"
+
+# [polygonBaggage]
+# points = [[0, 100], [600, 100]]
+
+[areaLounge]
+area = [600, 100, 300, 300]
+wait = "UNIFORM(2, 3)"
+dimensions = [20, 20]
+child = "areaBaggage"
