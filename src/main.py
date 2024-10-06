@@ -11,6 +11,7 @@ import tomllib as toml
 import re
 from pprint import pprint
 import numpy as np
+from pathlib import Path
 
 
 # functions
@@ -22,7 +23,7 @@ def save_heatmap():
         for x in range(WIDTH):
             color = lerp_heatmap(heatmap[y, x])
             heatmap_surf.set_at((x, y), color)
-    pygame.image.save(heatmap_surf, "heatmap.png")
+    pygame.image.save(heatmap_surf, Path("src", "heatmap.png"))
 
 
 def lerp_heatmap(i):
@@ -444,7 +445,7 @@ pedestrians_to_draw = []
 pool = {}
 entry = None
 static_objects = []
-with open("model.absml", "rb") as f:
+with open(Path("src", "model.absml"), "rb") as f:
     data = toml.load(f)
     for k, v in data.items():
         v |= {"name": k}
