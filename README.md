@@ -44,7 +44,7 @@ The place where pedestrians can spawn. Think of it like the entrance of a buildi
 ### Attributes:
 * `line`: `List[List[int], List[int]]`: the line at which the pedestrians can enter the simulation. The larger the line, the more random the entry points of the pedestrians will by.
 * `wait` `float | str`: the inverse of the frequency of the spawner. If given a `float`, the number itself is used. String can be given in this format: `"UNIFORM(a, b)"`. The following functions are also supported:
-** `GAUSS`
+    * `GAUSS`
 * `limit` `Optional[int]`: the maximum amount of pedestrians the spawner can spawn before stopping.
 * `child`: `str`: the child node of the spawner, can for example be a waiting area where the pedestrians can go.
 
