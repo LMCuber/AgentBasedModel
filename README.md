@@ -10,9 +10,11 @@ To view the paper we have written on this subject: _paper link_
 An .absml file is practically a glorified .toml file we use to parse your crowd simulation logic. The .absml file represents a tree structure which may be cyclic, which means that all objects in your file are linked in one way or another. There are different objects one can use in their simulation. Note that object and node are used synonymously throughout this file.
 
 ## Basic Syntax
-To initialize an object, use the square brackets `[]` just like you would use in a .toml file. The object names must start with the class name, but can be followed by any characters (e.g. `spawnerNumberOne` is allowed but `firstSpawner` is not).
-The `[global]` node is used for miscellaneous global variables.
-The master node (the entry point of the program) is denoted by a `!` suffix. The following code creates a spawner that redirects the pedestrians to a waiting area:
+* To initialize an object, use the square brackets `[]` just like you would use in a .toml file.
+* The object names must start with the class name, but can be followed by any characters (e.g. `spawnerNumberOne` is allowed but `firstSpawner` is not).
+* The `[global]` node is used for miscellaneous global variables.
+* The master node (the entry point of the program) is denoted by a `!` suffix, and all programs must have exactly one master node.
+The following code creates a spawner that redirects the pedestrians to a waiting area:
 
 ```toml
 ["spawnerMain!"]
