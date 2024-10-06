@@ -1,7 +1,5 @@
 # =======================================
 # agent based model markup language (absml)
-# must have entry point, denoting with a `!` suffix. Multiple not allowed.
-# use [global] for global stats like target fps and stuff
 # =======================================
 
 [global]
