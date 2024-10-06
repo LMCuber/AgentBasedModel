@@ -214,7 +214,6 @@ class Pedestrian:
         self.color = color if color is not None else pygame.Color("#FDFBD4")
         self.color = color if color is not None else pygame.Color("#0F4C5C")
         self.waiting_color = pygame.Color("#990000")
-
         # driving term
         self.v0 = 2 * clamp(random.gauss(walk.mu, walk.sigma), walk.min, walk.max)
         self.vel = Vec2(0, 0)
