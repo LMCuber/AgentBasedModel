@@ -23,7 +23,7 @@ def save_heatmap():
         for x in range(WIDTH):
             color = lerp_heatmap(heatmap[y, x])
             heatmap_surf.set_at((x, y), color)
-    pygame.image.save(heatmap_surf, Path("src", "heatmap.png"))
+    # pygame.image.save(heatmap_surf, Path("res", "heatmap.png"))
 
 
 def lerp_heatmap(i):
@@ -58,15 +58,14 @@ def parse_wait(wait):
 def traverse_and_update(node, visited=None):
     if visited is None:
         visited = set()
-
     if node is None or node in visited:
         return
 
     node_obj = pool[node]
-    
     node_obj.update()
     visited.add(node)
-    traverse_and_update(node_obj.child, visited)
+    for child in node_obj.children:
+        traverse_and_update(child, visited)
 
 
 def dist_point_to_line_segment(p1, p2, pos):
@@ -161,8 +160,13 @@ class Walk:
     max: float = 2.2
 
 
-class Spawner:
-    def __init__(self, name, line, wait, limit=float("inf"), child=None):
+class Node:
+    def get_child(self):
+        return random.choices(self.children, self.chances, k=1)[0]
+
+
+class Spawner(Node):
+    def __init__(self, name, line, wait, limit=float("inf"), children=None, chances=None):
         self.name = name
         self.line = line
         self.w = int(line[1][0] - line[0][0])
@@ -171,7 +175,8 @@ class Spawner:
         self.get_wait = parse_wait(wait)
         self.wait = self.get_wait()
         self.last_time = ticks()
-        self.child = child
+        self.children = children
+        self.chances = chances if chances is not None else [1]
         self.limit = limit
         self.spawned = 0
     
@@ -186,7 +191,8 @@ class Spawner:
             y = self.line[0][1] + random.randint(0, self.h)
             ped = Pedestrian(x, y)
 
-            pool[self.child].new_ped(ped)
+
+            pool[self.get_child()].new_ped(ped)
             all_pedestrians.append(ped)
             self.spawned += 1
 
@@ -378,8 +384,8 @@ class Queue:
             pygame.draw.circle(WIN, DARK_GRAY, point, 5)
 
 
-class Area:
-    def __init__(self, name, area, dimensions, wait=None, child=None):
+class Area(Node):
+    def __init__(self, name, area, dimensions, wait=None, children=None, chances=None):
         self.name = name
         self.area = area
         self.x, self.y, self.w, self.h = self.area
@@ -389,7 +395,8 @@ class Area:
         for y in range(self.num_y):
             for x in range(self.num_x):
                 self.attractors.append((self.x + (x + 0.5) / self.num_x * self.w, self.y + (y + 0.5) / self.num_y * self.h))
-        self.child = child
+        self.children = children
+        self.chances = chances if chances is not None else [1]
         self.last_time = ticks()
         self.pedestrians = []
         self.get_wait = parse_wait(wait)
@@ -414,9 +421,9 @@ class Area:
             if (ped.dest - ped.pos).length() <= 0.3:
                 ped.start_waiting()
             # does pedestrian need to go to next place?
-            if self.child is not None and ped.waiting and ticks() - ped.last_wait >= ped.wait:
+            if self.children is not None and ped.waiting and ticks() - ped.last_wait >= ped.wait:
                 self.pedestrians.remove(ped)
-                pool[self.child].new_ped(ped)
+                pool[self.get_child()].new_ped(ped)
 
 
 # colors

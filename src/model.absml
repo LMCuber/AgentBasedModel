@@ -3,16 +3,67 @@
 # =======================================
 
 [global]
-target_fps = 0
+target_fps = 120
 
 ["spawnerMain!"]
 line = [[220, 700], [270, 700]]
 wait = 0.1
 limit = 100
-child = "areaBaggage"
+children = ["area1"]
 
-[areaWaiting]
-area = [60, 100, 300, 300]
-dimensions = [1, 1]
-wait = 0.01
-child = "areaLounge"
+[area1]
+area = [50, 50, 140, 140]
+dimensions = [10, 10]
+wait = "UNIFORM(0.5, 2)"
+children = ["area1", "area2", "area3", "area4", "area5", "area6", "area7", "area8"]
+chances = [0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125]
+
+[area2]
+area = [200, 50, 140, 140]
+dimensions = [10, 10]
+wait = "UNIFORM(0.5, 2)"
+children = ["area1", "area2", "area3", "area4", "area5", "area6", "area7", "area8"]
+chances = [0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125]
+
+[area3]
+area = [350, 50, 140, 140]
+dimensions = [10, 10]
+wait = "UNIFORM(0.5, 2)"
+children = ["area1", "area2", "area3", "area4", "area5", "area6", "area7", "area8"]
+chances = [0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125]
+
+[area4]
+area = [500, 50, 140, 140]
+dimensions = [10, 10]
+wait = "UNIFORM(0.5, 2)"
+children = ["area1", "area2", "area3", "area4", "area5", "area6", "area7", "area8"]
+chances = [0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125]
+
+[area5]
+area = [50, 200, 140, 140]
+dimensions = [10, 10]
+wait = "UNIFORM(0.5, 2)"
+children = ["area1", "area2", "area3", "area4", "area5", "area6", "area7", "area8"]
+chances = [0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125]
+
+[area6]
+area = [200, 200, 140, 140]
+dimensions = [10, 10]
+wait = "UNIFORM(0.5, 2)"
+children = ["area1", "area2", "area3", "area4", "area5", "area6", "area7", "area8"]
+chances = [0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125]
+
+[area7]
+area = [350, 200, 140, 140]
+dimensions = [10, 10]
+wait = "UNIFORM(0.5, 2)"
+children = ["area1", "area2", "area3", "area4", "area5", "area6", "area7", "area8"]
+chances = [0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125]
+
+[area8]
+area = [500, 200, 140, 140]
+dimensions = [10, 10]
+wait = "UNIFORM(0.5, 2)"
+children = ["area1", "area2", "area3", "area4", "area5", "area6", "area7", "area8"]
+chances = [0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125]
+
