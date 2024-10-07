@@ -17,10 +17,10 @@ from pathlib import Path
 # functions
 def save_heatmap():
     global heatmap
-    heatmap_surf = pygame.Surface((WIDTH, HEIGHT))
+    heatmap_surf = pygame.Surface((g.width, g.height))
     heatmap /= heatmap.max()
-    for y in range(HEIGHT):
-        for x in range(WIDTH):
+    for y in range(g.height):
+        for x in range(g.width):
             color = lerp_heatmap(heatmap[y, x])
             heatmap_surf.set_at((x, y), color)
     # pygame.image.save(heatmap_surf, Path("res", "heatmap.png"))
@@ -106,9 +106,11 @@ def sigfig(x: float, precision: int):
 
 # classes
 class Global:
-    def __init__(self, name, target_fps):
+    def __init__(self, name, target_fps, width, height):
         self.name = name
         self.target_fps = target_fps
+        self.width = width
+        self.height = height
 
 
 class EditorModes(Enum):
@@ -128,7 +130,7 @@ class Editor:
                 self.points.append(pygame.mouse.get_pos())
             elif event.button == 3:
                 if len(self.points) >= 2:
-                    polygon = Polygon(*self.points)
+                    polygon = Polygon(name=None, points=self.points)
                     all_obstacles.append(polygon)
                     self.points.clear()
         
@@ -162,7 +164,10 @@ class Walk:
 
 class Node:
     def get_child(self):
-        return random.choices(self.children, self.chances, k=1)[0]
+        try:
+            return random.choices(self.children, self.chances, k=1)[0]
+        except ValueError:
+            raise RuntimeError("Target node has multiple children but no `chances` distribution")
 
 
 class Spawner(Node):
@@ -175,7 +180,7 @@ class Spawner(Node):
         self.get_wait = parse_wait(wait)
         self.wait = self.get_wait()
         self.last_time = ticks()
-        self.children = children
+        self.children = children if children is not None else []
         self.chances = chances if chances is not None else [1]
         self.limit = limit
         self.spawned = 0
@@ -224,7 +229,7 @@ class Pedestrian:
         self.t = 10
         # obstacle term
         self.A = 3
-        self.r_o = 4
+        self.r_o = 2
         # interactive term (with other pedestrians)
         self.B = 1
         self.r_i = 4
@@ -272,7 +277,7 @@ class Pedestrian:
         # draw
         pedestrians_to_draw.append(self)
         # update heatmap
-        heatmap[int(self.pos.y), int(self.pos.x)] += 1
+        # heatmap[int(self.pos.y), int(self.pos.x)] += 1
     
     def draw(self):
         color = self.color
@@ -326,9 +331,12 @@ class Obstacle(AbstractObstacle):
     
 
 class Polygon(AbstractObstacle):
-    def __init__(self, name, points):
+    def __init__(self, name, points, connect=False):
         self.name = name
         self.points = [Vec2(p) for p in points]
+        self.connect = connect
+        if self.connect:
+            self.points.append(self.points[0])
     
     def update(self):
         self.draw()
@@ -384,7 +392,7 @@ class Queue:
 
 
 class Area(Node):
-    def __init__(self, name, area, dimensions, wait=None, children=None, chances=None):
+    def __init__(self, name, area, dimensions, wait=None, kill=False, children=None, chances=None):
         self.name = name
         self.area = area
         self.x, self.y, self.w, self.h = self.area
@@ -394,10 +402,11 @@ class Area(Node):
         for y in range(self.num_y):
             for x in range(self.num_x):
                 self.attractors.append((self.x + (x + 0.5) / self.num_x * self.w, self.y + (y + 0.5) / self.num_y * self.h))
-        self.children = children
+        self.children = children if children is not None else []
         self.chances = chances if chances is not None else [1]
         self.last_time = ticks()
         self.pedestrians = []
+        self.kill = kill
         self.get_wait = parse_wait(wait)
     
     def new_ped(self, ped):
@@ -418,39 +427,32 @@ class Area(Node):
             ped.update(dt=1)
             # does pedestrian need to start waiting?
             if (ped.dest - ped.pos).length() <= 0.3:
-                ped.start_waiting()
+                if self.kill:
+                    self.pedestrians.remove(ped)
+                    all_pedestrians.remove(ped)
+                else:
+                    ped.start_waiting()
             # does pedestrian need to go to next place?
-            if self.children is not None and ped.waiting and ticks() - ped.last_wait >= ped.wait:
-                self.pedestrians.remove(ped)
-                pool[self.get_child()].new_ped(ped)
+            if self.children and ped.waiting:
+                if ped.wait is None:
+                    raise RuntimeError(f"{type(self)} object hasn't been given a `wait` attribute, but has children")
+
+                if ticks() - ped.last_wait >= ped.wait:
+                    self.pedestrians.remove(ped)
+                    pool[self.get_child()].new_ped(ped)
 
 
-# colors
-BLACK = (0, 0, 0)
-WHITE = (255, 255, 255)
-DARK_GRAY = (40, 40, 40)
-LIGHT_GRAY = (200, 200, 200)
-SMALL = 0.0001
-# constants
-pygame.init()
-WIDTH = 1000
-HEIGHT = 800
-pygame.display.set_caption("Social Force Model")
-WIN = pygame.display.set_mode((WIDTH, HEIGHT))
-clock = pygame.time.Clock()
-font = pygame.font.SysFont("Courier", 20)
-heatmap = np.zeros((HEIGHT, WIDTH))
+
 
 # sim initialization
 walk = Walk()
 all_obstacles = []
 all_pedestrians = []
 pedestrians_to_draw = []
-
-# load the model file
 pool = {}
 entry = None
 static_objects = []
+all_spawners = []
 with open(Path("src", "model.absml"), "rb") as f:
     data = toml.load(f)
     for k, v in data.items():
@@ -460,6 +462,7 @@ with open(Path("src", "model.absml"), "rb") as f:
         elif k.startswith("spawner"):
             spawner = Spawner(**v)
             pool[k] = spawner
+            all_spawners.append(k)
         elif k.startswith("area"):
             area = Area(**v)
             pool[k] = area
@@ -470,6 +473,20 @@ with open(Path("src", "model.absml"), "rb") as f:
         if k.endswith("!"):
             entry = k
 
+# colors
+BLACK = (0, 0, 0)
+WHITE = (255, 255, 255)
+DARK_GRAY = (40, 40, 40)
+LIGHT_GRAY = (200, 200, 200)
+SMALL = 0.0001
+
+# constants
+pygame.init()
+pygame.display.set_caption("Social Force Model")
+WIN = pygame.display.set_mode((g.width, g.height))
+clock = pygame.time.Clock()
+font = pygame.font.SysFont("Courier", 20)
+heatmap = np.zeros((g.height, g.width))
 
 def main():
     # mainloop
@@ -485,7 +502,7 @@ def main():
             
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    save_heatmap()
+                    # save_heatmap()
                     running = False
     
         # clearing window
@@ -495,7 +512,8 @@ def main():
 
     
         pedestrians_to_draw.clear()
-        traverse_and_update(entry)
+        for spawner in all_spawners:
+            traverse_and_update(spawner)
         for ped in pedestrians_to_draw:
             ped.draw()
         
