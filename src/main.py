@@ -453,7 +453,7 @@ pool = {}
 entry = None
 static_objects = []
 all_spawners = []
-with open(Path("src", "model.absml"), "rb") as f:
+with open("model.absml", "rb") as f:
     data = toml.load(f)
     for k, v in data.items():
         v |= {"name": k}
@@ -511,6 +511,7 @@ def main():
         # updating the simulation
 
     
+        # print("----------------------")
         pedestrians_to_draw.clear()
         for spawner in all_spawners:
             traverse_and_update(spawner)
