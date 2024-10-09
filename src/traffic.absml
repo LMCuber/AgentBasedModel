@@ -1,0 +1,33 @@
+# =======================================
+# agent based model markup language (absml)
+# =======================================
+[global]
+target_fps = 120
+width = 800
+height = 800
+
+[spawnerBottom]
+line = [[350, 700], [450, 700]]
+wait = 80
+children = ["areaTop"]
+
+[spawnerRight]
+line = [[700, 350], [700, 450]]
+wait = 80
+children = ["areaLeft"]
+
+[areaTop]  
+area = [330, 0, 120, 30]
+dimensions = [10, 2]
+wait = 0.1
+kill = true
+
+[areaLeft]
+area = [0, 345, 60, 100]
+dimensions = [5, 10]
+wait = 0.1
+kill = true
+
+[polygonPillar]
+points = [[390, 390], [410, 390], [410, 410], [390, 410]]
+connect = true

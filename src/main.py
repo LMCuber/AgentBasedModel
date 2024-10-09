@@ -15,6 +15,10 @@ from pathlib import Path
 
 
 # functions
+def roundn(x, base):
+    return base * round(x / base)
+
+
 def save_heatmap():
     global heatmap
     heatmap_surf = pygame.Surface((g.width, g.height))
@@ -55,17 +59,19 @@ def parse_wait(wait):
     return func
 
 
-def traverse_and_update(node, visited=None):
+def traverse_and_update(node, visited_global, visited=None):
     if visited is None:
         visited = set()
-    if node is None or node in visited:
+    if node is None or node in visited or node in visited_global:
         return
 
     node_obj = pool[node]
     node_obj.update()
+    # print(node)
     visited.add(node)
+    visited_global.add(node)
     for child in node_obj.children:
-        traverse_and_update(child, visited)
+        traverse_and_update(child, visited_global, visited)
 
 
 def dist_point_to_line_segment(p1, p2, pos):
@@ -111,44 +117,76 @@ class Global:
         self.target_fps = target_fps
         self.width = width
         self.height = height
+        self.grid = 30
 
 
 class EditorModes(Enum):
     ERASE = -1
     POLYGON = 0
-    REVOLVER = 1
+    AREA = 1
+    # REVOLVER = 1
 
 
 class Editor:
     def __init__(self):
         self.points = []
+        self.area = []
         self.mode = EditorModes.POLYGON
     
     def process_event(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1:
-                self.points.append(pygame.mouse.get_pos())
+                if self.mode == EditorModes.POLYGON:
+                    self.points.append(self.placing_pos)
+                elif self.mode == EditorModes.AREA:
+                    if not self.area:
+                        self.area = self.placing_pos
+                    else:
+                        x, y = self.placing_pos
+                        w, h = x - self.area[0], y - self.area[1]
+                        area = Area("area", (*self.area, w, h), (5, 5), kill=True)
+                        pool["area"] = area
+                        pool[all_spawners[0]].children = ["area"]
+                        self.area = []
+
             elif event.button == 3:
+                if len(self.points) >= 2:
+                    del self.points[-1]
+
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_LCTRL:
+                Pedestrian.move = not Pedestrian.move
+            
+            elif event.key == pygame.K_RETURN:
                 if len(self.points) >= 2:
                     polygon = Polygon(name=None, points=self.points)
                     all_obstacles.append(polygon)
                     self.points.clear()
-        
-        elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_LCTRL:
-                ...
-                Pedestrian.move = not Pedestrian.move
-                # if Pedestrian.move:
-                #     Pedestrian.dest = pygame.mouse.get_pos()
-                # else:
-                #     Pedestrian.dest = None
+            
+            else:
+                self.mode = {
+                    49: EditorModes.POLYGON,
+                    50: EditorModes.AREA,
+                }.get(event.key, self.mode)
     
     def update(self):
+        self.placing_pos = [roundn(p, 30) for p in pygame.mouse.get_pos()]
         m = Vec2(pygame.mouse.get_pos())
         mod = pygame.key.get_mods()
         if self.mode == EditorModes.POLYGON:
+            o = 20
+            pygame.draw.line(WIN, BLACK, (g.width / 2 - o, 30 + o), (g.width / 2 + o, 30 - o), 10)
             if self.points:
-                pygame.draw.lines(WIN, BLACK, False, self.points + [pygame.mouse.get_pos()], 5)
+                pygame.draw.lines(WIN, (100, 100, 100, 255), False, self.points + [self.placing_pos], 5)
+        
+        elif self.mode == EditorModes.AREA:
+            s = 30
+            pygame.draw.rect(WIN, BLACK, (g.width / 2 - s, 50 - s, s * 2, s * 2), 3)
+            if self.area:
+                x, y = self.placing_pos
+                w, h = x - self.area[0], y - self.area[1]
+                pygame.draw.rect(WIN, pygame.Color("#1167b1"), (*self.area, w, h))
+                pygame.draw.rect(WIN, BLACK, (*self.area, w, h), 5)
 
 
 editor = Editor()
@@ -426,7 +464,7 @@ class Area(Node):
         for ped in self.pedestrians.copy():
             ped.update(dt=1)
             # does pedestrian need to start waiting?
-            if (ped.dest - ped.pos).length() <= 0.3:
+            if (ped.dest - ped.pos).length() <= 3:
                 if self.kill:
                     self.pedestrians.remove(ped)
                     all_pedestrians.remove(ped)
@@ -435,14 +473,18 @@ class Area(Node):
             # does pedestrian need to go to next place?
             if self.children and ped.waiting:
                 if ped.wait is None:
-                    raise RuntimeError(f"{type(self)} object hasn't been given a `wait` attribute, but has children")
+                    raise RuntimeError(f"{self.name} object hasn't been given a `wait` attribute, but has children")
 
                 if ticks() - ped.last_wait >= ped.wait:
                     self.pedestrians.remove(ped)
                     pool[self.get_child()].new_ped(ped)
 
-
-
+# colors
+BLACK = (0, 0, 0)
+WHITE = (255, 255, 255)
+DARK_GRAY = (40, 40, 40)
+LIGHT_GRAY = (200, 200, 200)
+SMALL = 0.0001
 
 # sim initialization
 walk = Walk()
@@ -453,10 +495,14 @@ pool = {}
 entry = None
 static_objects = []
 all_spawners = []
+file_vars = {}
 with open("model.absml", "rb") as f:
     data = toml.load(f)
     for k, v in data.items():
+        if k == "vars":
+            file_vars |= v
         v |= {"name": k}
+
         if k == "global":
             g = Global(**v)
         elif k.startswith("spawner"):
@@ -473,12 +519,12 @@ with open("model.absml", "rb") as f:
         if k.endswith("!"):
             entry = k
 
-# colors
-BLACK = (0, 0, 0)
-WHITE = (255, 255, 255)
-DARK_GRAY = (40, 40, 40)
-LIGHT_GRAY = (200, 200, 200)
-SMALL = 0.0001
+grid_surf = pygame.Surface((g.width, g.height))
+grid_surf.fill(LIGHT_GRAY)
+for y in range(g.height // g.grid):
+    for x in range(g.width // g.grid):
+        pygame.draw.line(grid_surf, (140, 140, 140), (x * g.grid, 0), (x * g.grid, g.height))
+    pygame.draw.line(grid_surf, (140, 140, 140), (0, y * g.grid), (g.width, y * g.grid))
 
 # constants
 pygame.init()
@@ -487,6 +533,7 @@ WIN = pygame.display.set_mode((g.width, g.height))
 clock = pygame.time.Clock()
 font = pygame.font.SysFont("Courier", 20)
 heatmap = np.zeros((g.height, g.width))
+
 
 def main():
     # mainloop
@@ -506,15 +553,19 @@ def main():
                     running = False
     
         # clearing window
-        WIN.fill(LIGHT_GRAY)
+        WIN.blit(grid_surf, (0, 0))
 
         # updating the simulation
 
     
-        # print("----------------------")
         pedestrians_to_draw.clear()
+
+
+        visited_global = set()
+
         for spawner in all_spawners:
-            traverse_and_update(spawner)
+            traverse_and_update(spawner, visited_global)
+
         for ped in pedestrians_to_draw:
             ped.draw()
         
@@ -522,7 +573,8 @@ def main():
             ob.update()
      
         # displaying fps (veri important)
-        surf = font.render(str(int(clock.get_fps())), True, BLACK)
+        text = f"{int(clock.get_fps())}\nPedestrians: {len(pedestrians_to_draw)}"
+        surf = font.render(text, True, BLACK)
         WIN.blit(surf, (10, 10))
 
         editor.update()
