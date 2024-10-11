@@ -1,25 +1,29 @@
+# =======================================
+# agent based model markup language (absml)
+# =======================================
 [global]
-width = 1200
-height = 600
-target_fps = 60
+target_fps = 120
+width = 810
+height = 810
 
-[spawnerMain]
-line = [[200, 580], [320, 580]]
-wait = 200
-limit = 10000
-children = ["areaBaggageLine1"]
+[spawnerBottom]
+line = [[250, 700], [350, 700]]
+wait = 80
+children = ["areaTop"]
 
-# [polygonBaggageLine]
-# points = [[240, 220], [200, 580], [320, 580], [260, 220]]
-
-[areaBaggageLine1]
-area = [240, 200, 30, 30]
-dimensions = [1, 1]
-wait = 0
-children = ["areaBaggageLine2"]
-
-[areaBaggageLine2]
-area = [140, 200, 30, 30]
-dimensions = [1, 1]
-wait = 0
+[areaTop]  
+area = [330, 0, 120, 30]
+dimensions = [10, 2]
+wait = 0.1
 kill = true
+
+# [polygonQueue1]
+# points = [
+#     [10, 6], [16, 6], [16, 8], [10, 8], [16, 8], [16, 10], [10, 10], [16, 10],
+#     [16, 12], [10, 12]
+# ]
+
+# [polygonQueue2]
+# points = [
+#     [9, 6], [9, 7], [15, 7], [9, 7], [9, 9], [15, 9], [9, 9]
+# ]

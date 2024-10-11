@@ -15,6 +15,10 @@ from pathlib import Path
 
 
 # functions
+def pos_to_grid(x, y):
+    return (x * g.grid, g.height - (y * g.grid))
+
+
 def roundn(x, base):
     return base * round(x / base)
 
@@ -91,6 +95,7 @@ def dist_point_to_line_segment(p1, p2, pos):
     #
     normal = (pos - nearest)
     return (normal, dist)
+
 
 def clamp(value, mn, mx):
     return max(mn, min(value, mx))
@@ -209,7 +214,7 @@ class Node:
 
 
 class Spawner(Node):
-    def __init__(self, name, line, wait, limit=float("inf"), children=None, chances=None):
+    def __init__(self, name, line, wait, limit=float("inf"), color=None, children=None, chances=None):
         self.name = name
         self.line = line
         self.w = int(line[1][0] - line[0][0])
@@ -222,6 +227,7 @@ class Spawner(Node):
         self.chances = chances if chances is not None else [1]
         self.limit = limit
         self.spawned = 0
+        self.color = color
     
     def draw(self):
         for p in self.line:
@@ -232,8 +238,7 @@ class Spawner(Node):
         if ticks() - self.last_time >= self.wait and self.spawned < self.limit:
             x = self.line[0][0] + random.randint(0, self.w)
             y = self.line[0][1] + random.randint(0, self.h)
-            ped = Pedestrian(x, y)
-
+            ped = Pedestrian(x, y, color=self.color)
 
             pool[self.get_child()].new_ped(ped)
             all_pedestrians.append(ped)
@@ -513,6 +518,7 @@ with open("model.absml", "rb") as f:
             area = Area(**v)
             pool[k] = area
         elif k.startswith("polygon"):
+            v["points"] = [pos_to_grid(x, y) for x, y in v["points"]]
             polygon = Polygon(**v)
             pool[k] = polygon
             all_obstacles.append(polygon)
