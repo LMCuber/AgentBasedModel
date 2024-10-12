@@ -4,7 +4,7 @@ import sys
 import cProfile
 import random
 from dataclasses import dataclass
-from math import e, cos, sin, log10, floor, exp, pi
+from math import e, cos, sin, log10, floor, exp, pi, degrees
 from enum import Enum
 from pygame.time import get_ticks as ticks
 import tomllib as toml
@@ -12,11 +12,56 @@ import re
 from pprint import pprint
 import numpy as np
 from pathlib import Path
+from contextlib import suppress
+from itertools import product
 
 
 # functions
-def pos_to_grid(x, y):
-    return (x * g.grid, g.height - (y * g.grid))
+def save():
+    visited_global = set()
+    with open("save.toml", "w") as toml_file:
+        toml_file.write(g.get_toml())
+        for spawner in all_spawners:
+            traverse_and_save_toml(spawner, visited_global, toml_file)
+        for ob in all_obstacles:
+            toml_file.write(ob.get_toml())
+
+    pygame.quit()
+    sys.exit()
+
+
+def load_model(path):
+    global g, all_obstacles, all_spawners, static_objects, pool
+
+    all_obstacles = []
+    static_objects = []
+    all_spawners = []
+    file_vars = {}
+
+    with open(path, "rb") as f:
+        data = toml.load(f)
+        for k, v in data.items():
+            if k == "vars":
+                file_vars |= v
+            v |= {"name": k}
+
+            if k == "global":
+                g = Global(**v, edit=False)
+            elif k.startswith("spawner"):
+                spawner = Spawner(**v)
+                pool[k] = spawner
+                all_spawners.append(k)
+            elif k.startswith("area"):
+                area = Area(**v)
+                pool[k] = area
+            elif k.startswith("polygon"):
+                polygon = Polygon(**v)
+                pool[k] = polygon
+                all_obstacles.append(polygon)
+
+
+def grid_to_pos(x, y):
+    return [x * g.grid, g.height - (y * g.grid)]
 
 
 def roundn(x, base):
@@ -71,11 +116,26 @@ def traverse_and_update(node, visited_global, visited=None):
 
     node_obj = pool[node]
     node_obj.update()
-    # print(node)
     visited.add(node)
     visited_global.add(node)
     for child in node_obj.children:
         traverse_and_update(child, visited_global, visited)
+
+
+def traverse_and_save_toml(node, visited_global, toml_file, visited=None):
+    if visited is None:
+        visited = set()
+    if node is None or node in visited or node in visited_global:
+        return
+
+    node_obj = pool[node]
+
+    toml_file.write(node_obj.get_toml())
+
+    visited.add(node)
+    visited_global.add(node)
+    for child in node_obj.children:
+        traverse_and_save_toml(child, visited_global, toml_file, visited)
 
 
 def dist_point_to_line_segment(p1, p2, pos):
@@ -115,21 +175,107 @@ def sigfig(x: float, precision: int):
     return round(x, -int(floor(log10(abs(x)))) + (precision - 1))
   
 
+
+
+data = {
+  "target": {
+    "ip": "xx.xx.xx.xx",
+    "os": {
+      "os": "win 10",
+      "Arch": "x64"
+    },
+    "ports": {
+      "ports": ["1", "2"],
+      "1": {
+        "service": "xxx",
+        "ver": "5.9",
+      }
+    } 
+  }
+}
+
+
+
 # classes
 class Global:
-    def __init__(self, name, target_fps, width, height):
+    def __init__(self, name, target_fps, width, height, edit=None):
         self.name = name
         self.target_fps = target_fps
         self.width = width
         self.height = height
         self.grid = 30
+        self.edit = edit
+    
+    def get_toml(self):
+        ret = f"[global]\n"
+        ret += f"width = {self.width}\n"
+        ret += f"height = {self.height}\n"
+        ret += f"target_fps = {self.target_fps}\n"
+        ret += "\n"
+        return ret
+    
+    def main(self):
+        # mainloop
+        running = __name__ == "__main__"
+        while running:
+            dt = clock.tick(self.target_fps) / 1000 / (1 / 120)
+        
+            for event in pygame.event.get():
+                editor.process_event(event)
+
+                if event.type == pygame.QUIT:
+                    running = False
+                
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        # save_heatmap()
+                        running = False
+        
+            # clearing window
+            if self.edit:
+                with suppress(Exception):
+                    load_model("model.toml")
+            WIN.blit(grid_surf, (0, 0))
+
+            # updating the simulation
+        
+            pedestrians_to_draw.clear()
+
+            visited_global = set()
+
+            for spawner in all_spawners:
+                traverse_and_update(spawner, visited_global)
+
+            for ped in pedestrians_to_draw:
+                ped.draw()
+            
+            for ob in all_obstacles:
+                ob.update()
+            
+            for (x, y), angle in vector_field.items():
+                p1 = Vec2((x + 0.5) * self.grid, (y + 0.5) * self.grid)
+                img = pygame.transform.rotozoom(arrow_img, degrees(angle), 1)
+                arrow_rect.center = p1
+                WIN.blit(img, arrow_rect)
+        
+            # displaying fps (veri important)
+            text = f"{int(clock.get_fps())}\nPedestrians: {len(pedestrians_to_draw)}"
+            surf = font.render(text, True, BLACK)
+            WIN.blit(surf, (10, 10))
+
+            editor.update()
+        
+            # flip the display
+            pygame.display.flip()
+
+        save()
 
 
 class EditorModes(Enum):
     ERASE = -1
     POLYGON = 0
-    AREA = 1
-    # REVOLVER = 1
+    RECT = 1
+    AREA = 2
 
 
 class Editor:
@@ -149,14 +295,28 @@ class Editor:
                     else:
                         x, y = self.placing_pos
                         w, h = x - self.area[0], y - self.area[1]
-                        area = Area("area", (*self.area, w, h), (5, 5), kill=True)
+                        area = Area(Area.get_name(), (*self.area, w, h), (5, 5), kill=True)
                         pool["area"] = area
-                        pool[all_spawners[0]].children = ["area"]
+                        self.area = []
+                
+                elif self.mode == EditorModes.RECT:
+                    if not self.area:
+                        self.area = self.placing_pos
+                    else:
+                        points = [
+                            (self.area[0], self.area[1]),
+                            (self.placing_pos[0], self.area[1]),
+                            (self.placing_pos[0], self.placing_pos[1]),
+                            (self.area[0], self.placing_pos[1]),
+                        ]
+                        poly = Polygon(Polygon.get_name(), points, connect=True)
+                        all_obstacles.append(poly)
                         self.area = []
 
             elif event.button == 3:
-                if len(self.points) >= 2:
-                    del self.points[-1]
+                if self.mode == EditorModes.POLYGON:
+                    if self.points:
+                        del self.points[-1]
 
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_LCTRL:
@@ -164,34 +324,41 @@ class Editor:
             
             elif event.key == pygame.K_RETURN:
                 if len(self.points) >= 2:
-                    polygon = Polygon(name=None, points=self.points)
+                    polygon = Polygon(Polygon.get_name(), points=self.points.copy())
                     all_obstacles.append(polygon)
                     self.points.clear()
             
             else:
                 self.mode = {
                     49: EditorModes.POLYGON,
-                    50: EditorModes.AREA,
+                    50: EditorModes.RECT,
+                    51: EditorModes.AREA,
                 }.get(event.key, self.mode)
     
     def update(self):
         self.placing_pos = [roundn(p, 30) for p in pygame.mouse.get_pos()]
         m = Vec2(pygame.mouse.get_pos())
         mod = pygame.key.get_mods()
+        pygame.draw.circle(WIN, BLACK, self.placing_pos, 4)
         if self.mode == EditorModes.POLYGON:
             o = 20
             pygame.draw.line(WIN, BLACK, (g.width / 2 - o, 30 + o), (g.width / 2 + o, 30 - o), 10)
             if self.points:
                 pygame.draw.lines(WIN, (100, 100, 100, 255), False, self.points + [self.placing_pos], 5)
         
-        elif self.mode == EditorModes.AREA:
+        elif self.mode in (EditorModes.RECT, EditorModes.AREA):
+            if self.mode == EditorModes.RECT:
+                color = BLACK
+            else:
+                color = pygame.Color("sky blue")
             s = 30
-            pygame.draw.rect(WIN, BLACK, (g.width / 2 - s, 50 - s, s * 2, s * 2), 3)
+            pygame.draw.rect(WIN, color, (g.width / 2 - s, 50 - s, s * 2, s * 2), 3)
             if self.area:
                 x, y = self.placing_pos
                 w, h = x - self.area[0], y - self.area[1]
-                pygame.draw.rect(WIN, pygame.Color("#1167b1"), (*self.area, w, h))
-                pygame.draw.rect(WIN, BLACK, (*self.area, w, h), 5)
+                if self.mode == EditorModes.AREA:
+                    pygame.draw.rect(WIN, pygame.Color("#1167b1"), (*self.area, w, h))
+                pygame.draw.rect(WIN, color, (*self.area, w, h), 5)
 
 
 editor = Editor()
@@ -211,14 +378,33 @@ class Node:
             return random.choices(self.children, self.chances, k=1)[0]
         except ValueError:
             raise RuntimeError("Target node has multiple children but no `chances` distribution")
+    
+    def get_toml(self):
+        ret = f"[{self.name}]\n"
+        for attr in self.toml_attrs:
+            attr_obj = getattr(self, attr)
+            if attr_obj is None:
+                continue
+            if isinstance(attr_obj, str):
+                attr_obj = f'"{attr_obj}"'
+            if isinstance(attr_obj, bool):
+                attr_obj = str(attr_obj).lower()
+            if attr == "line":
+                attr_obj = getattr(self, "grid_line", self.line)
+            if isinstance(attr_obj, list) and attr_obj and isinstance(attr_obj[0], Vec2):
+                attr_obj = [[vec.x, vec.y] for vec in attr_obj]
+            ret += f"{attr} = {attr_obj}\n"
+        ret += "\n"
+        return ret
 
 
 class Spawner(Node):
-    def __init__(self, name, line, wait, limit=float("inf"), color=None, children=None, chances=None):
+    def __init__(self, name, line, wait, limit=10 ** 5, color=None, children=None, chances=None):
+        self.toml_attrs = ("line", "wait", "limit", "color", "children", "chances")
         self.name = name
-        self.line = line
-        self.w = int(line[1][0] - line[0][0])
-        self.h = int(line[1][1] - line[0][1])
+        self.line = [Vec2(grid_to_pos(*p)) for p in line]
+        self.w = int(self.line[1][0] - self.line[0][0])
+        self.h = int(self.line[1][1] - self.line[0][1])
         self.normal = Vec2(self.w, self.h).normalize().rotate(-90)
         self.get_wait = parse_wait(wait)
         self.wait = self.get_wait()
@@ -235,17 +421,18 @@ class Spawner(Node):
         pygame.draw.lines(WIN, pygame.Color("#2a9df4"), False, self.line)
     
     def update(self):
-        if ticks() - self.last_time >= self.wait and self.spawned < self.limit:
-            x = self.line[0][0] + random.randint(0, self.w)
-            y = self.line[0][1] + random.randint(0, self.h)
-            ped = Pedestrian(x, y, color=self.color)
+        if not g.edit:
+            if ticks() - self.last_time >= self.wait and self.spawned < self.limit:
+                x = self.line[0][0] + random.randint(0, self.w)
+                y = self.line[0][1] + random.randint(0, self.h)
+                ped = Pedestrian(x, y, color=self.color)
 
-            pool[self.get_child()].new_ped(ped)
-            all_pedestrians.append(ped)
-            self.spawned += 1
+                pool[self.get_child()].new_ped(ped)
+                all_pedestrians.append(ped)
+                self.spawned += 1
 
-            self.last_time = ticks()
-            self.wait = self.get_wait()
+                self.last_time = ticks()
+                self.wait = self.get_wait()
         self.draw()
 
 
@@ -263,7 +450,8 @@ class Pedestrian:
         self.color = color if color is not None else pygame.Color("#0F4C5C")
         self.waiting_color = pygame.Color("#990000")
         # driving term
-        self.v0 = 2 * clamp(random.gauss(walk.mu, walk.sigma), walk.min, walk.max)
+        self.v0 = 2 * clamp(random.gauss(walk.mu, walk.sigma), walk.min, walk.max) * 0.2
+        self.pving = False
         self.vel = Vec2(0, 0)
         self.acc = Vec2(0, 0)
         self.dacc = Vec2(0, 0)
@@ -282,10 +470,23 @@ class Pedestrian:
             self.last_wait = ticks()
             self.waiting = True
     
+    def start_pv(self):
+        self.start_waiting()
+        self.pving = True
+    
     def calculate_drive_force(self):
-        dest = Pedestrian.dest if Pedestrian.dest is not None else self.dest
-        self.e = (dest - self.pos) / (dest - self.pos).length()
-        desired_vel = self.v0 * self.e
+        grid_x = int(self.pos.x / g.grid)
+        grid_y = int(self.pos.y / g.grid)
+        grid_pos = (grid_x, grid_y)
+        if grid_pos in vector_field:
+            angle = vector_field[grid_pos]
+            self.e = Vec2(cos(angle), sin(angle))
+            self.color = pygame.Color("orange")
+        else:
+            dest = Pedestrian.dest if Pedestrian.dest is not None else self.dest
+            self.e = (dest - self.pos) / (dest - self.pos).length()
+            self.color = pygame.Color("lavender")
+        desired_vel = (0 if self.pving else self.v0) * self.e
         delta_vel = desired_vel - self.vel
         return 1 / self.t * delta_vel
     
@@ -301,6 +502,8 @@ class Pedestrian:
         total_f = Vec2(0, 0)
         for ped in all_pedestrians:
             if ped is not self:
+                if (ped.pos - self.pos).length() >= 30:
+                    continue
                 d = (ped.pos - self.pos).length()
                 n = (self.pos - ped.pos)
                 f = self.B * exp(-d / self.r_i) * n
@@ -349,7 +552,7 @@ class Gate:
         WIN.blit(self.image, self.rect)
 
 
-class AbstractObstacle:
+class AbstractObstacle(Node):
     def draw(self):
         WIN.blit(self.image, self.rect)
 
@@ -374,12 +577,28 @@ class Obstacle(AbstractObstacle):
     
 
 class Polygon(AbstractObstacle):
-    def __init__(self, name, points, connect=False):
+    def __init__(self, name, points, connect=False, queue=False):
+        self.toml_attrs = ("points", "connect", "queue")
         self.name = name
-        self.points = [Vec2(p) for p in points]
+        self.points = [Vec2(*p) for p in points]
         self.connect = connect
         if self.connect:
             self.points.append(self.points[0])
+        self.queue = queue
+    
+    @classmethod
+    def get_name(cls):
+        num = 0
+        name = f"{cls.__name__.lower()}{num}"
+        while True:
+            for ob in all_obstacles:
+                name = f"{cls.__name__.lower()}{num}"
+                if ob.name == name:
+                    num += 1
+                    break
+            else:
+                break
+        return name
     
     def update(self):
         self.draw()
@@ -435,10 +654,14 @@ class Queue:
 
 
 class Area(Node):
-    def __init__(self, name, area, dimensions, wait=None, kill=False, children=None, chances=None):
+    def __init__(self, name, area, dimensions, wait_mode="att", wait=None, kill=False, children=None, chances=None):
+        self.toml_attrs = ("area", "dimensions", "wait_mode", "wait", "kill", "children", "chances")
         self.name = name
+        self.h = area[3] * g.grid
+        # self.area = [grid_to_pos(*area[:2])[0], grid_to_pos(*area[:2])[1] - self.h] + [x * g.grid for x in area[2:]]
         self.area = area
-        self.x, self.y, self.w, self.h = self.area
+        self.x, self.y, self.w, _ = self.area
+        self.rect = pygame.Rect(self.x, self.y, self.w, self.h)
         self.dimensions = dimensions
         self.num_x, self.num_y = self.dimensions
         self.attractors = []
@@ -451,10 +674,15 @@ class Area(Node):
         self.pedestrians = []
         self.kill = kill
         self.get_wait = parse_wait(wait)
+        self.wait_mode = wait_mode
+        self.wait = wait
     
     def new_ped(self, ped):
         ped.waiting = False
-        ped.dest = random.choice(self.attractors)
+        if self.wait_mode == "att":
+            ped.dest = random.choice(self.attractors)
+        elif self.wait_mode == "pv":
+            ped.dest = self.rect.center
         ped.wait = self.get_wait()
         self.pedestrians.append(ped)
 
@@ -469,12 +697,16 @@ class Area(Node):
         for ped in self.pedestrians.copy():
             ped.update(dt=1)
             # does pedestrian need to start waiting?
-            if (ped.dest - ped.pos).length() <= 3:
-                if self.kill:
-                    self.pedestrians.remove(ped)
-                    all_pedestrians.remove(ped)
-                else:
-                    ped.start_waiting()
+            if self.wait_mode == "att":
+                if (ped.dest - ped.pos).length() <= 3:
+                    if self.kill:
+                        self.pedestrians.remove(ped)
+                        all_pedestrians.remove(ped)
+                    else:
+                        ped.start_waiting()
+            elif self.wait_mode == "pv":
+                if self.rect.collidepoint(ped.pos):
+                    ped.start_pv()
             # does pedestrian need to go to next place?
             if self.children and ped.waiting:
                 if ped.wait is None:
@@ -491,39 +723,16 @@ DARK_GRAY = (40, 40, 40)
 LIGHT_GRAY = (200, 200, 200)
 SMALL = 0.0001
 
-# sim initialization
 walk = Walk()
-all_obstacles = []
 all_pedestrians = []
 pedestrians_to_draw = []
-pool = {}
-entry = None
-static_objects = []
+all_obstacles = []
 all_spawners = []
-file_vars = {}
-with open("model.absml", "rb") as f:
-    data = toml.load(f)
-    for k, v in data.items():
-        if k == "vars":
-            file_vars |= v
-        v |= {"name": k}
-
-        if k == "global":
-            g = Global(**v)
-        elif k.startswith("spawner"):
-            spawner = Spawner(**v)
-            pool[k] = spawner
-            all_spawners.append(k)
-        elif k.startswith("area"):
-            area = Area(**v)
-            pool[k] = area
-        elif k.startswith("polygon"):
-            v["points"] = [pos_to_grid(x, y) for x, y in v["points"]]
-            polygon = Polygon(**v)
-            pool[k] = polygon
-            all_obstacles.append(polygon)
-        if k.endswith("!"):
-            entry = k
+static_objects = []
+g = None
+pool = {}
+g = Global("global", 120, 810, 810)
+load_model("save.toml")
 
 grid_surf = pygame.Surface((g.width, g.height))
 grid_surf.fill(LIGHT_GRAY)
@@ -535,60 +744,18 @@ for y in range(g.height // g.grid):
 # constants
 pygame.init()
 pygame.display.set_caption("Social Force Model")
-WIN = pygame.display.set_mode((g.width, g.height))
+WIN = pygame.display.set_mode((g.width, g.height), pygame.RESIZABLE)
 clock = pygame.time.Clock()
 font = pygame.font.SysFont("Courier", 20)
 heatmap = np.zeros((g.height, g.width))
 
-
-def main():
-    # mainloop
-    running = __name__ == "__main__"
-    while running:
-        dt = clock.tick(g.target_fps) / 1000 / (1 / 120)
-    
-        for event in pygame.event.get():
-            editor.process_event(event)
-
-            if event.type == pygame.QUIT:
-                running = False
+arrow_img = pygame.transform.scale(pygame.image.load(Path("../res", "arrow.png")), (g.grid * 0.5, g.grid * 0.5))
+arrow_rect = arrow_img.get_rect()
+vector_field = {}
+for y in range(g.height // g.grid):
+    for x in range(g.width // g.grid):
+        if 5 <= x <= 15 and 10 <= y <= 14 and False:
+            # vector_field[(x, y)] = random.uniform(0, 2 * pi)
+            vector_field[(x, y)] = 0
             
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    # save_heatmap()
-                    running = False
-    
-        # clearing window
-        WIN.blit(grid_surf, (0, 0))
-
-        # updating the simulation
-
-    
-        pedestrians_to_draw.clear()
-
-
-        visited_global = set()
-
-        for spawner in all_spawners:
-            traverse_and_update(spawner, visited_global)
-
-        for ped in pedestrians_to_draw:
-            ped.draw()
-        
-        for ob in all_obstacles:
-            ob.update()
-     
-        # displaying fps (veri important)
-        text = f"{int(clock.get_fps())}\nPedestrians: {len(pedestrians_to_draw)}"
-        surf = font.render(text, True, BLACK)
-        WIN.blit(surf, (10, 10))
-
-        editor.update()
-    
-        # flip the display
-        pygame.display.flip()
-
-    pygame.quit()
-    sys.exit()
-
-main()
+g.main()

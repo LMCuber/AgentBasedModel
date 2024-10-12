@@ -1,0 +1,25 @@
+[global]
+width = 810
+height = 810
+target_fps = 120
+
+[polygon0]
+points = [[210.0, 390.0], [330.0, 420.0], [330.0, 540.0], [240.0, 600.0]]
+connect = false
+queue = false
+
+[polygon1]
+points = [[450.0, 300.0], [360.0, 390.0], [540.0, 420.0], [450.0, 510.0]]
+connect = false
+queue = false
+
+[polygon2]
+points = [[300.0, 270.0], [90.0, 480.0], [300.0, 660.0]]
+connect = false
+queue = false
+
+[polygon3]
+points = [[270.0, 150.0], [570.0, 150.0], [570.0, 240.0], [270.0, 240.0], [270.0, 150.0]]
+connect = true
+queue = false
+
