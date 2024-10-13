@@ -22,13 +22,19 @@ def save(toml_path):
         toml_file.write(g.get_toml())
         for obj in pool.values():
             toml_file.write(obj.get_toml())
+        toml_file.write("# VECTOR FIELDS\n\n")
+        for i, (pos, vector) in enumerate(vector_field.items()):
+            toml_file.write(f"[vector{i}]\n")
+            toml_file.write(f"pos = {list(pos)}\n")
+            toml_file.write(f"angle = {vector.angle}\n")
+            toml_file.write("\n")
 
     pygame.quit()
     sys.exit()
 
 
 def load_model(path):
-    global g, all_obstacles, all_spawners, static_objects, pool
+    global g, all_obstacles, all_spawners, static_objects, pool, vector_field
 
     all_obstacles = []
     static_objects = []
@@ -55,6 +61,12 @@ def load_model(path):
                 polygon = Polygon(**v)
                 pool[k] = polygon
                 all_obstacles.append(polygon)
+            elif k.startswith("vector"):
+                pos = tuple(v["pos"])
+                del v["pos"]
+                del v["name"]
+                vector = FieldVector(**v)
+                vector_field[pos] = vector
 
 
 def grid_to_pos(x, y):
@@ -218,7 +230,7 @@ class Global:
                         g.draw = not g.draw
                 
                 elif event.type == pygame.MOUSEWHEEL:
-                    editor.vec_angle += event.y
+                    editor.vec_angle += event.y * 4
         
             # clearing window
             if self.edit:
@@ -325,7 +337,7 @@ class Editor:
                 
                 elif self.mode == EditorModes.VECTOR:
                     v = FieldVector(radians(editor.vec_angle))
-                    indexes = tuple(p / g.grid for p in self.placing_pos)
+                    indexes = tuple(p // g.grid for p in self.placing_pos)
                     vector_field[indexes] = v
 
             elif event.button == 3:
@@ -486,8 +498,8 @@ class Pedestrian:
         self.pos = Vec2(x, y)
         self.gate = random.randrange(Gate.N)
         self.dest = Vec2(50, 50)
-        self.color = color if color is not None else pygame.Color("#FDFBD4")
-        self.color = color if color is not None else pygame.Color("#0F4C5C")
+        # self.color = color if color is not None else pygame.Color("#FDFBD4")
+        self.def_color = self.color = color if color is not None else pygame.Color("#0F4C5C")
         self.waiting_color = pygame.Color("#990000")
         # driving term
         self.v0 = 0.9 * clamp(random.gauss(walk.mu, walk.sigma), walk.min, walk.max)
@@ -521,11 +533,11 @@ class Pedestrian:
         if grid_pos in vector_field:
             angle = vector_field[grid_pos].angle
             self.e = Vec2(cos(angle), -sin(angle))
-            # self.color = pygame.Color("orange")
+            self.color = pygame.Color("orange")
         else:
             dest = Pedestrian.dest if Pedestrian.dest is not None else self.dest
             self.e = (dest - self.pos) / (dest - self.pos).length()
-            # self.color = pygame.Color("lavender")
+            self.color = self.def_color
         desired_vel = (0 if self.pving else self.v0) * self.e
         delta_vel = desired_vel - self.vel
         return 1 / self.t * delta_vel
@@ -765,11 +777,13 @@ pedestrians_to_draw = []
 all_obstacles = []
 all_spawners = []
 static_objects = []
+vector_field = {}
 g = None
 pool = {}
 g = Global("global", 120, 810, 810)
+vector_image = pygame.transform.flip(pygame.transform.scale(pygame.image.load(Path("../res", "arrow.png")), (g.grid * 0.6, g.grid * 0.6)), False, False)
+
 load_model("save.toml")
-vector_image = pygame.transform.flip(pygame.transform.scale(pygame.image.load(Path("../res", "arrow.png")), (g.grid * 0.6, g.grid * 0.6)), True, False)
 
 grid_surf = pygame.Surface((g.width, g.height))
 grid_surf.fill(LIGHT_GRAY)
@@ -786,7 +800,6 @@ clock = pygame.time.Clock()
 font = pygame.font.SysFont("Courier", 20)
 heatmap = np.zeros((g.height, g.width))
 
-vector_field = {}
 # for y in range(g.height // g.grid):
 #     for x in range(g.width // g.grid):
 #         if 5 <= x <= 15 and 10 <= y <= 14:

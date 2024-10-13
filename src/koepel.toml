@@ -1,0 +1,77 @@
+[global]
+width = 810
+height = 810
+target_fps = 120
+draw = false
+
+[polygon0]
+points = [[240.0, 150.0], [240.0, 270.0], [120.0, 330.0], [120.0, 480.0], [180.0, 600.0], [330.0, 630.0]]
+connect = false
+queue = false
+
+[polygon1]
+points = [[510.0, 150.0], [510.0, 270.0], [660.0, 300.0], [660.0, 450.0], [600.0, 600.0], [540.0, 630.0]]
+connect = false
+queue = false
+
+[polygon2]
+points = [[330.0, 630.0], [420.0, 630.0]]
+connect = false
+queue = false
+
+[spawner0]
+line = [[330.0, 60.0], [450.0, 60.0]]
+wait = 3000
+limit = 10000
+children = ['area0', 'area1', 'area2']
+chances = [0.3, 0.4, 0.3]
+
+[polygon3]
+points = [[390.0, 150.0], [360.0, 270.0]]
+connect = false
+queue = false
+
+[area0]
+area = [210, 300, 30, 30]
+dimensions = [5, 5]
+wait_mode = "att"
+wait = "UNIFORM(2000, 4000)"
+kill = false
+children = ['area3']
+chances = [1]
+
+[area1]
+area = [150, 360, 30, 30]
+dimensions = [5, 5]
+wait_mode = "att"
+wait = "UNIFORM(2000, 4000)"
+kill = false
+children = ['area3']
+chances = [1]
+
+[area2]
+area = [150, 450, 30, 30]
+dimensions = [5, 5]
+wait_mode = "att"
+wait = "UNIFORM(2000, 4000)"
+kill = false
+children = ['area3']
+chances = [1]
+
+[area3]
+area = [360, 570, 30, 30]
+dimensions = [5, 5]
+wait_mode = "att"
+wait = "UNIFORM(2000, 4000)"
+kill = false
+children = ['area4']
+chances = [1]
+
+[area4]
+area = [600, 750, 120, 30]
+dimensions = [5, 5]
+wait_mode = "att"
+kill = true
+children = []
+chances = [1]
+
