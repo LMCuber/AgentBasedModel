@@ -235,7 +235,7 @@ class Global:
             # clearing window
             if self.edit:
                 with suppress(Exception):
-                    load_model("model.toml")
+                    load_model(Path("src", "model.toml"))
             WIN.blit(grid_surf, (0, 0))
 
             # updating the simulation
@@ -274,7 +274,7 @@ class Global:
             # flip the display
             pygame.display.flip()
 
-        save("save.toml")
+        save(Path("src", "save.toml"))
 
 
 class EditorModes(Enum):
@@ -781,9 +781,9 @@ vector_field = {}
 g = None
 pool = {}
 g = Global("global", 120, 810, 810)
-vector_image = pygame.transform.flip(pygame.transform.scale(pygame.image.load(Path("../res", "arrow.png")), (g.grid * 0.6, g.grid * 0.6)), False, False)
+vector_image = pygame.transform.flip(pygame.transform.scale(pygame.image.load(Path("res", "arrow.png")), (g.grid * 0.6, g.grid * 0.6)), False, False)
 
-load_model("save.toml")
+load_model(Path("src", "save.toml"))
 
 grid_surf = pygame.Surface((g.width, g.height))
 grid_surf.fill(LIGHT_GRAY)
