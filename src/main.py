@@ -4,7 +4,7 @@ import sys
 import cProfile
 import random
 from dataclasses import dataclass
-from math import e, cos, sin, log10, floor, exp, pi, degrees
+from math import e, cos, sin, log10, floor, exp, pi, degrees, radians
 from enum import Enum
 from pygame.time import get_ticks as ticks
 import tomllib as toml
@@ -17,14 +17,11 @@ from itertools import product
 
 
 # functions
-def save():
-    visited_global = set()
-    with open("save.toml", "w") as toml_file:
+def save(toml_path):
+    with open(toml_path, "w") as toml_file:
         toml_file.write(g.get_toml())
-        for spawner in all_spawners:
-            traverse_and_save_toml(spawner, visited_global, toml_file)
-        for ob in all_obstacles:
-            toml_file.write(ob.get_toml())
+        for obj in pool.values():
+            toml_file.write(obj.get_toml())
 
     pygame.quit()
     sys.exit()
@@ -99,8 +96,8 @@ def parse_wait(wait):
     except AttributeError:
         func = lambda: wait
     else:
-        arg1 = float(match.group(2)) * 1000
-        arg2 = float(match.group(3)) * 1000
+        arg1 = float(match.group(2))
+        arg2 = float(match.group(3))
         if distribution == "UNIFORM":
             func = lambda: random.uniform(arg1, arg2)
         elif distribution == "GAUSS":
@@ -116,8 +113,10 @@ def traverse_and_update(node, visited_global, visited=None):
 
     node_obj = pool[node]
     node_obj.update()
+
     visited.add(node)
     visited_global.add(node)
+
     for child in node_obj.children:
         traverse_and_update(child, visited_global, visited)
 
@@ -142,8 +141,11 @@ def dist_point_to_line_segment(p1, p2, pos):
     line_vec = p2 - p1
     pnt_vec = pos - Vec2(p1)
     line_len = line_vec.length()
-    line_unitvec = line_vec.normalize()
-    pnt_vec_scaled = pnt_vec / line_len
+    try:
+        line_unitvec = line_vec.normalize()
+    except ValueError:
+        line_unitvec = Vec2(1, 1)
+    pnt_vec_scaled = pnt_vec / (line_len + 0.01)
     t = line_unitvec.dot(pnt_vec_scaled)    
     if t < 0.0:
         t = 0.0
@@ -175,35 +177,15 @@ def sigfig(x: float, precision: int):
     return round(x, -int(floor(log10(abs(x)))) + (precision - 1))
   
 
-
-
-data = {
-  "target": {
-    "ip": "xx.xx.xx.xx",
-    "os": {
-      "os": "win 10",
-      "Arch": "x64"
-    },
-    "ports": {
-      "ports": ["1", "2"],
-      "1": {
-        "service": "xxx",
-        "ver": "5.9",
-      }
-    } 
-  }
-}
-
-
-
 # classes
 class Global:
-    def __init__(self, name, target_fps, width, height, edit=None):
+    def __init__(self, name, target_fps, width, height, draw=True, edit=None):
         self.name = name
         self.target_fps = target_fps
         self.width = width
         self.height = height
         self.grid = 30
+        self.draw = draw
         self.edit = edit
     
     def get_toml(self):
@@ -211,6 +193,7 @@ class Global:
         ret += f"width = {self.width}\n"
         ret += f"height = {self.height}\n"
         ret += f"target_fps = {self.target_fps}\n"
+        ret += f"draw = {str(self.draw).lower()}\n"
         ret += "\n"
         return ret
     
@@ -230,6 +213,12 @@ class Global:
                     if event.key == pygame.K_ESCAPE:
                         # save_heatmap()
                         running = False
+                    
+                    elif event.key == pygame.K_e:
+                        g.draw = not g.draw
+                
+                elif event.type == pygame.MOUSEWHEEL:
+                    editor.vec_angle += event.y
         
             # clearing window
             if self.edit:
@@ -243,8 +232,12 @@ class Global:
 
             visited_global = set()
 
-            for spawner in all_spawners:
-                traverse_and_update(spawner, visited_global)
+            if g.draw:
+                for name, obj in pool.items():
+                    obj.draw()
+            else:
+                for spawner in all_spawners:
+                    traverse_and_update(spawner, visited_global)
 
             for ped in pedestrians_to_draw:
                 ped.draw()
@@ -252,23 +245,24 @@ class Global:
             for ob in all_obstacles:
                 ob.update()
             
-            for (x, y), angle in vector_field.items():
-                p1 = Vec2((x + 0.5) * self.grid, (y + 0.5) * self.grid)
-                img = pygame.transform.rotozoom(arrow_img, degrees(angle), 1)
-                arrow_rect.center = p1
-                WIN.blit(img, arrow_rect)
+            for (x, y), vector in vector_field.items():
+                vector.update(x, y)
         
             # displaying fps (veri important)
             text = f"{int(clock.get_fps())}\nPedestrians: {len(pedestrians_to_draw)}"
             surf = font.render(text, True, BLACK)
             WIN.blit(surf, (10, 10))
+            if g.draw:
+                surf = font.render("[DRAW MODE]", True, BLACK)
+                rect = surf.get_rect(midtop=(g.width / 2, 60))
+                WIN.blit(surf, rect)
 
             editor.update()
         
             # flip the display
             pygame.display.flip()
 
-        save()
+        save("save.toml")
 
 
 class EditorModes(Enum):
@@ -276,6 +270,8 @@ class EditorModes(Enum):
     POLYGON = 0
     RECT = 1
     AREA = 2
+    SPAWNER = 3
+    VECTOR = 4
 
 
 class Editor:
@@ -283,20 +279,33 @@ class Editor:
         self.points = []
         self.area = []
         self.mode = EditorModes.POLYGON
+        self.vec_angle = 0
     
     def process_event(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1:
                 if self.mode == EditorModes.POLYGON:
                     self.points.append(self.placing_pos)
+
+                elif self.mode == EditorModes.SPAWNER:
+                    if not self.points:
+                        self.points.append(self.placing_pos)
+                    else:
+                        self.points.append(self.placing_pos)
+                        name = Spawner.get_name()
+                        spawner = Spawner(name, self.points, 100)
+                        pool[name] = spawner
+                        self.points.clear()
+
                 elif self.mode == EditorModes.AREA:
                     if not self.area:
                         self.area = self.placing_pos
                     else:
                         x, y = self.placing_pos
                         w, h = x - self.area[0], y - self.area[1]
-                        area = Area(Area.get_name(), (*self.area, w, h), (5, 5), kill=True)
-                        pool["area"] = area
+                        name = Area.get_name()
+                        area = Area(name, [*self.area, w, h], [5, 5], kill=True)
+                        pool[name] = area
                         self.area = []
                 
                 elif self.mode == EditorModes.RECT:
@@ -309,9 +318,15 @@ class Editor:
                             (self.placing_pos[0], self.placing_pos[1]),
                             (self.area[0], self.placing_pos[1]),
                         ]
-                        poly = Polygon(Polygon.get_name(), points, connect=True)
-                        all_obstacles.append(poly)
+                        name = Polygon.get_name()
+                        poly = Polygon(name, points, connect=True)
+                        pool[name] = poly
                         self.area = []
+                
+                elif self.mode == EditorModes.VECTOR:
+                    v = FieldVector(radians(editor.vec_angle))
+                    indexes = tuple(p / g.grid for p in self.placing_pos)
+                    vector_field[indexes] = v
 
             elif event.button == 3:
                 if self.mode == EditorModes.POLYGON:
@@ -324,8 +339,9 @@ class Editor:
             
             elif event.key == pygame.K_RETURN:
                 if len(self.points) >= 2:
-                    polygon = Polygon(Polygon.get_name(), points=self.points.copy())
-                    all_obstacles.append(polygon)
+                    name = Polygon.get_name()
+                    polygon = Polygon(name, points=self.points.copy())
+                    pool[name] = polygon
                     self.points.clear()
             
             else:
@@ -333,32 +349,42 @@ class Editor:
                     49: EditorModes.POLYGON,
                     50: EditorModes.RECT,
                     51: EditorModes.AREA,
+                    52: EditorModes.SPAWNER,
+                    53: EditorModes.VECTOR
                 }.get(event.key, self.mode)
     
     def update(self):
         self.placing_pos = [roundn(p, 30) for p in pygame.mouse.get_pos()]
-        m = Vec2(pygame.mouse.get_pos())
-        mod = pygame.key.get_mods()
         pygame.draw.circle(WIN, BLACK, self.placing_pos, 4)
         if self.mode == EditorModes.POLYGON:
-            o = 20
-            pygame.draw.line(WIN, BLACK, (g.width / 2 - o, 30 + o), (g.width / 2 + o, 30 - o), 10)
             if self.points:
                 pygame.draw.lines(WIN, (100, 100, 100, 255), False, self.points + [self.placing_pos], 5)
         
+        elif self.mode == EditorModes.SPAWNER:
+            if self.points:
+                pygame.draw.lines(WIN, pygame.Color("dark blue"), False, self.points + [self.placing_pos], 3)
+
         elif self.mode in (EditorModes.RECT, EditorModes.AREA):
             if self.mode == EditorModes.RECT:
                 color = BLACK
             else:
                 color = pygame.Color("sky blue")
             s = 30
-            pygame.draw.rect(WIN, color, (g.width / 2 - s, 50 - s, s * 2, s * 2), 3)
             if self.area:
                 x, y = self.placing_pos
                 w, h = x - self.area[0], y - self.area[1]
                 if self.mode == EditorModes.AREA:
                     pygame.draw.rect(WIN, pygame.Color("#1167b1"), (*self.area, w, h))
                 pygame.draw.rect(WIN, color, (*self.area, w, h), 5)
+        
+        elif self.mode == EditorModes.VECTOR:
+            image = pygame.transform.rotozoom(vector_image, self.vec_angle, 1)
+            rect = image.get_rect(center=(g.width - 20, 20))
+            WIN.blit(image, rect)
+        
+        mode_surf = font.render(str(self.mode), True, BLACK)
+        mode_rect = mode_surf.get_rect(midtop=(g.width / 2, 30))
+        WIN.blit(mode_surf, mode_rect)
 
 
 editor = Editor()
@@ -373,6 +399,20 @@ class Walk:
 
 
 class Node:
+    @classmethod
+    def get_name(cls):
+        num = 0
+        name = f"{cls.__name__.lower()}{num}"
+        while True:
+            for other_name in pool.keys():
+                name = f"{cls.__name__.lower()}{num}"
+                if other_name == name:
+                    num += 1
+                    break
+            else:
+                break
+        return name
+
     def get_child(self):
         try:
             return random.choices(self.children, self.chances, k=1)[0]
@@ -402,7 +442,7 @@ class Spawner(Node):
     def __init__(self, name, line, wait, limit=10 ** 5, color=None, children=None, chances=None):
         self.toml_attrs = ("line", "wait", "limit", "color", "children", "chances")
         self.name = name
-        self.line = [Vec2(grid_to_pos(*p)) for p in line]
+        self.line = [Vec2(*p) for p in line]
         self.w = int(self.line[1][0] - self.line[0][0])
         self.h = int(self.line[1][1] - self.line[0][1])
         self.normal = Vec2(self.w, self.h).normalize().rotate(-90)
@@ -422,7 +462,7 @@ class Spawner(Node):
     
     def update(self):
         if not g.edit:
-            if ticks() - self.last_time >= self.wait and self.spawned < self.limit:
+            if self.children and ticks() - self.last_time >= self.wait and self.spawned < self.limit:
                 x = self.line[0][0] + random.randint(0, self.w)
                 y = self.line[0][1] + random.randint(0, self.h)
                 ped = Pedestrian(x, y, color=self.color)
@@ -450,7 +490,7 @@ class Pedestrian:
         self.color = color if color is not None else pygame.Color("#0F4C5C")
         self.waiting_color = pygame.Color("#990000")
         # driving term
-        self.v0 = 2 * clamp(random.gauss(walk.mu, walk.sigma), walk.min, walk.max) * 0.2
+        self.v0 = 0.9 * clamp(random.gauss(walk.mu, walk.sigma), walk.min, walk.max)
         self.pving = False
         self.vel = Vec2(0, 0)
         self.acc = Vec2(0, 0)
@@ -479,13 +519,13 @@ class Pedestrian:
         grid_y = int(self.pos.y / g.grid)
         grid_pos = (grid_x, grid_y)
         if grid_pos in vector_field:
-            angle = vector_field[grid_pos]
-            self.e = Vec2(cos(angle), sin(angle))
-            self.color = pygame.Color("orange")
+            angle = vector_field[grid_pos].angle
+            self.e = Vec2(cos(angle), -sin(angle))
+            # self.color = pygame.Color("orange")
         else:
             dest = Pedestrian.dest if Pedestrian.dest is not None else self.dest
             self.e = (dest - self.pos) / (dest - self.pos).length()
-            self.color = pygame.Color("lavender")
+            # self.color = pygame.Color("lavender")
         desired_vel = (0 if self.pving else self.v0) * self.e
         delta_vel = desired_vel - self.vel
         return 1 / self.t * delta_vel
@@ -586,20 +626,6 @@ class Polygon(AbstractObstacle):
             self.points.append(self.points[0])
         self.queue = queue
     
-    @classmethod
-    def get_name(cls):
-        num = 0
-        name = f"{cls.__name__.lower()}{num}"
-        while True:
-            for ob in all_obstacles:
-                name = f"{cls.__name__.lower()}{num}"
-                if ob.name == name:
-                    num += 1
-                    break
-            else:
-                break
-        return name
-    
     def update(self):
         self.draw()
     
@@ -614,6 +640,17 @@ class Polygon(AbstractObstacle):
             except IndexError:
                 continue
             yield dist_point_to_line_segment(p1, p2, other.pos)
+
+
+class FieldVector(Node):
+    def __init__(self, angle):
+        self.angle = angle
+        self.image = pygame.transform.rotozoom(vector_image, degrees(angle), 1)
+        self.rect = vector_image.get_rect()
+    
+    def update(self, xindex, yindex):
+        self.rect.center = ((xindex + 0.5) * g.grid, (yindex + 0.5) * g.grid)
+        WIN.blit(self.image, self.rect)
 
 
 class Revolver(AbstractObstacle):
@@ -654,20 +691,16 @@ class Queue:
 
 
 class Area(Node):
-    def __init__(self, name, area, dimensions, wait_mode="att", wait=None, kill=False, children=None, chances=None):
+    def __init__(self, name, area, dimensions, wait_mode="pv", wait=None, kill=False, children=None, chances=None):
         self.toml_attrs = ("area", "dimensions", "wait_mode", "wait", "kill", "children", "chances")
         self.name = name
-        self.h = area[3] * g.grid
-        # self.area = [grid_to_pos(*area[:2])[0], grid_to_pos(*area[:2])[1] - self.h] + [x * g.grid for x in area[2:]]
         self.area = area
-        self.x, self.y, self.w, _ = self.area
-        self.rect = pygame.Rect(self.x, self.y, self.w, self.h)
+        self.rect = pygame.Rect(area)
+
         self.dimensions = dimensions
         self.num_x, self.num_y = self.dimensions
         self.attractors = []
-        for y in range(self.num_y):
-            for x in range(self.num_x):
-                self.attractors.append((self.x + (x + 0.5) / self.num_x * self.w, self.y + (y + 0.5) / self.num_y * self.h))
+
         self.children = children if children is not None else []
         self.chances = chances if chances is not None else [1]
         self.last_time = ticks()
@@ -680,7 +713,10 @@ class Area(Node):
     def new_ped(self, ped):
         ped.waiting = False
         if self.wait_mode == "att":
-            ped.dest = random.choice(self.attractors)
+            if self.attractors:
+                ped.dest = random.choice(self.attractors)
+            else:
+                ped.dest = self.rect.center
         elif self.wait_mode == "pv":
             ped.dest = self.rect.center
         ped.wait = self.get_wait()
@@ -733,6 +769,7 @@ g = None
 pool = {}
 g = Global("global", 120, 810, 810)
 load_model("save.toml")
+vector_image = pygame.transform.flip(pygame.transform.scale(pygame.image.load(Path("../res", "arrow.png")), (g.grid * 0.6, g.grid * 0.6)), True, False)
 
 grid_surf = pygame.Surface((g.width, g.height))
 grid_surf.fill(LIGHT_GRAY)
@@ -749,13 +786,11 @@ clock = pygame.time.Clock()
 font = pygame.font.SysFont("Courier", 20)
 heatmap = np.zeros((g.height, g.width))
 
-arrow_img = pygame.transform.scale(pygame.image.load(Path("../res", "arrow.png")), (g.grid * 0.5, g.grid * 0.5))
-arrow_rect = arrow_img.get_rect()
 vector_field = {}
-for y in range(g.height // g.grid):
-    for x in range(g.width // g.grid):
-        if 5 <= x <= 15 and 10 <= y <= 14 and False:
-            # vector_field[(x, y)] = random.uniform(0, 2 * pi)
-            vector_field[(x, y)] = 0
+# for y in range(g.height // g.grid):
+#     for x in range(g.width // g.grid):
+#         if 5 <= x <= 15 and 10 <= y <= 14:
+#             vf = ValueError
+#             vector_field[(x, y)] = FieldVector(random.uniform(0, 2 * pi))
             
 g.main()

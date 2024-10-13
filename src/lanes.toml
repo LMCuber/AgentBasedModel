@@ -1,0 +1,45 @@
+[global]
+width = 810
+height = 810
+target_fps = 120
+draw = false
+
+[spawner0]
+line = [[360.0, 90.0], [480.0, 90.0]]
+wait = 0
+limit = 15
+color = [255, 255, 255]
+children = ['area1']
+chances = [1]
+
+[spawner1]
+line = [[360.0, 750.0], [480.0, 750.0]]
+wait = 0
+limit = 15
+color = [0, 0, 0]
+children = ['area0']
+chances = [1]
+
+[area0]
+area = [360, 30, 120, 30]
+dimensions = [5, 5]
+wait_mode = "att"
+wait = 0
+kill = false
+children = []
+chances = [1]
+
+[area1]
+area = [360, 780, 120, 30]
+dimensions = [5, 5]
+wait_mode = "att"
+wait = 0
+kill = false
+children = []
+chances = [1]
+
+[polygon0]
+points = [[300.0, 0.0], [540.0, 0.0], [540.0, 810.0], [300.0, 810.0], [300.0, 0.0], [300.0, 0.0], [300.0, 0.0], [300.0, 0.0], [300.0, 0.0], [300.0, 0.0], [300.0, 0.0], [300.0, 0.0], [300.0, 0.0], [300.0, 0.0], [300.0, 0.0], [300.0, 0.0]]
+connect = true
+queue = false
+
