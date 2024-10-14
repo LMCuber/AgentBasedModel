@@ -16,35 +16,15 @@ queue = false
 
 [spawner0]
 line = [[270.0, 660.0], [300.0, 660.0]]
-wait = 900
-limit = 24
-children = ['areaQueue']
+wait = 2000
+limit = 60
+children = ['areaBaggage']
 chances = [1]
-
-[areaQueue]
-area = [270, 390, 210, 210]
-dimensions = [7, 7]
-wait_mode = "queue"
-kill = true
-children = []
-chances = [1]
-queueRegulator = false
 
 [polygon2]
 points = [[270.0, 600.0], [180.0, 720.0], [390.0, 720.0], [300.0, 600.0]]
 connect = false
 queue = false
-
-[areaFront]
-area = [450, 360, 30, 30]
-dimensions = [1, 1]
-wait_mode = "att"
-wait = 0
-kill = false
-children = ['areaBaggage']
-chances = [1]
-queueRegulator = true
-code = "print('Hello World')"
 
 [areaBaggage]
 area = [210, 210, 360, 30]
@@ -54,7 +34,6 @@ wait = 7000
 kill = false
 children = ['areaLounge']
 chances = [1]
-queueRegulator = false
 
 [areaLounge]
 area = [630, 300, 150, 150]
@@ -63,7 +42,6 @@ wait_mode = "pv"
 kill = true
 children = []
 chances = [1]
-queueRegulator = false
 
 [polygon3]
 points = [[450.0, 390.0], [480.0, 390.0]]
@@ -281,26 +259,26 @@ pos = [8, 21]
 angle = -4.6774823953448035
 
 [vector52]
+pos = [15, 13]
+angle = 1.53588974175501
+
+[vector53]
 pos = [8, 22]
 angle = 1.6057029118347832
 
-[vector53]
+[vector54]
 pos = [9, 22]
 angle = 1.6057029118347832
 
-[vector54]
+[vector55]
 pos = [10, 22]
 angle = 1.6057029118347832
 
-[vector55]
+[vector56]
 pos = [11, 22]
 angle = 1.6057029118347832
 
-[vector56]
-pos = [7, 22]
-angle = 1.6057029118347832
-
 [vector57]
-pos = [15, 13]
+pos = [7, 22]
 angle = 1.6057029118347832
 
