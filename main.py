@@ -494,7 +494,7 @@ class Pedestrian:
     dest = None
     def __init__(self, x, y, color=None):
         # init
-        self.radius = 5
+        self.radius = 10
         self.pos = Vec2(x, y)
         self.gate = random.randrange(Gate.N)
         self.dest = Vec2(50, 50)
@@ -582,7 +582,7 @@ class Pedestrian:
         if self.waiting:
             color = self.waiting_color
         pygame.draw.aacircle(WIN, color, self.pos, self.radius)
-        pygame.draw.aacircle(WIN, BLACK, self.pos, 5, 1)
+        pygame.draw.aacircle(WIN, BLACK, self.pos, self.radius, 1)
         #
         m = 3
         pygame.draw.line(WIN, (0, 255, 0), self.pos, self.pos + self.vel * m, 2)

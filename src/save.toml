@@ -42,6 +42,11 @@ kill = true
 children = []
 chances = [1]
 
+[polygon3]
+points = [[450.0, 390.0], [480.0, 390.0]]
+connect = false
+queue = false
+
 # VECTOR FIELDS
 
 [vector0]
@@ -251,4 +256,16 @@ angle = -4.6774823953448035
 [vector51]
 pos = [8, 21]
 angle = -4.6774823953448035
+
+[vector52]
+pos = [15, 13]
+angle = 1.53588974175501
+
+[vector53]
+pos = [19, 15]
+angle = -9.42477796076938
+
+[vector54]
+pos = [16, 13]
+angle = 0.0
 
