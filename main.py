@@ -199,6 +199,8 @@ class Global:
         self.grid = 30
         self.draw = draw
         self.edit = edit
+        self.last = ticks()
+        self.running = False
     
     def get_toml(self):
         ret = f"[global]\n"
@@ -211,23 +213,24 @@ class Global:
     
     def main(self):
         # mainloop
-        running = __name__ == "__main__"
-        while running:
+        g.running = __name__ == "__main__"
+        while g.running:
             dt = clock.tick(self.target_fps) / 1000 / (1 / 120)
         
             for event in pygame.event.get():
                 editor.process_event(event)
 
                 if event.type == pygame.QUIT:
-                    running = False
+                    g.running = False
                 
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         # save_heatmap()
-                        running = False
+                        g.running = False
                     
-                    elif event.key == pygame.K_d:
-                        pass
+                    elif event.key == pygame.K_q:
+                        print(ticks() - g.last)
+                        g.running = False
                 
                 elif event.type == pygame.MOUSEWHEEL:
                     editor.vec_angle += event.y * 4
@@ -477,17 +480,20 @@ class Spawner(Node):
     
     def update(self):
         if not g.edit:
-            if self.children and ticks() - self.last_time >= self.wait and self.spawned < self.limit:
-                x = self.line[0][0] + random.randint(0, self.w)
-                y = self.line[0][1] + random.randint(0, self.h)
-                ped = Pedestrian(x, y, color=self.color)
+            if self.children and ticks() - self.last_time >= self.wait:
+                if self.spawned < self.limit:
+                    x = self.line[0][0] + random.randint(0, self.w)
+                    y = self.line[0][1] + random.randint(0, self.h)
+                    ped = Pedestrian(x, y, color=self.color)
 
-                pool[self.get_child()].new_ped(ped)
-                all_pedestrians.append(ped)
-                self.spawned += 1
+                    pool[self.get_child()].new_ped(ped)
+                    all_pedestrians.append(ped)
+                    self.spawned += 1
 
-                self.last_time = ticks()
-                self.wait = self.get_wait()
+                    self.last_time = ticks()
+                    self.wait = self.get_wait()
+                else:
+                    pass
         self.draw()
 
 
@@ -505,7 +511,7 @@ class Pedestrian:
         self.def_color = self.color = [random.randint(0, 255) for _ in range(3)]
         self.waiting_color = pygame.Color("#990000")
         # driving term
-        self.v0 = 1 * clamp(random.gauss(walk.mu, walk.sigma), walk.min, walk.max)
+        self.v0 = 1.6 * clamp(random.gauss(walk.mu, walk.sigma), walk.min, walk.max)
         self.pving = False
         self.vel = Vec2(0, 0)
         self.acc = Vec2(0, 0)
@@ -791,7 +797,6 @@ class Area(Node):
             ped.area = self
             ped.att_index = 0
             # ped.dest = self.attractors.pop(ped.att_index)
-            print(self.name, self.available_attractor_index)
             ped.dest = self.attractors[self.available_attractor_index]
             self.available_attractor_index += 1
         
