@@ -1,8 +1,8 @@
 [global]
 width = 1450
 height = 810
-target_fps = 240
-draw = true
+target_fps = 144
+draw = false
 
 [polygon0]
 points = [[330.0, 600.0], [330.0, 720.0], [0.0, 720.0]]
@@ -16,13 +16,13 @@ invisible = false
 
 [spawnerMain]
 line = [[360.0, 780.0], [420.0, 780.0]]
-wait = 500
-limit = 40
+wait = 100000
+limit = 10
 children = ['areaQueueTicket']
 chances = [1]
 
 [areaQueueTicket]
-area = [180, 300, 150, 300]
+area = [0, 0, 1, 1]
 dimensions = [1, 1]
 wait_mode = "queue"
 kill = false
@@ -33,18 +33,37 @@ queue_initiator = 43
 
 [areaTicket]
 area = [30, 270, 30, 330]
-dimensions = [1, 10]
+dimensions = [1, 4]
 wait_mode = "att"
-wait = 2000
+wait = "UNIFORM(500, 3000)"
 kill = false
-children = []
+children = ['areaQueueSecurity']
 chances = [1]
 
 [areaQueueSecurity]
-area = [180, 30, 360, 30]
-dimensions = [5, 5]
+area = [0, 0, 1, 1]
+dimensions = [1, 1]
+wait_mode = "queue"
+kill = false
+children = ['areaSecurity']
+chances = [1]
+queue_positions = [[14, 3], [15, 3], [16, 3], [17, 3], [17, 4], [16, 4], [15, 4], [14, 4], [13, 4], [12, 4], [11, 4], [10, 4], [9, 4], [8, 4], [7, 4], [6, 4], [6, 5], [7, 5], [8, 5], [9, 5], [10, 5], [11, 5], [12, 5], [13, 5], [14, 5], [15, 5], [16, 5], [17, 5], [17, 6], [16, 6], [15, 6], [14, 6], [13, 6], [12, 6], [11, 6], [10, 6], [9, 6], [8, 6], [7, 6], [6, 6], [6, 7]]
+queue_initiator = 40
+
+[areaSecurity]
+area = [240, 30, 240, 30]
+dimensions = [3, 1]
+wait_mode = "att"
+wait = "UNIFORM(1000, 6000)"
+kill = false
+children = ['areaWait']
+chances = [1]
+
+[areaWait]
+area = [700, 0, 200, 150]
+dimensions = [1, 1]
 wait_mode = "pv"
-kill = true
+kill = false
 children = []
 chances = [1]
 
@@ -120,6 +139,21 @@ invisible = false
 
 [polygon16]
 points = [[540.0, 210.0], [210.0, 210.0]]
+connect = false
+invisible = false
+
+[polygon17]
+points = [[210.0, 240.0], [210.0, 210.0]]
+connect = false
+invisible = false
+
+[polygon18]
+points = [[180.0, 480.0], [210.0, 480.0]]
+connect = false
+invisible = false
+
+[polygon19]
+points = [[420.0, 90.0], [420.0, 120.0]]
 connect = false
 invisible = false
 
@@ -295,5 +329,169 @@ angle = -3.141592653589793
 
 [vector42]
 pos = [11, 15]
-angle = -3.141592653589793
+angle = 3.141592653589793
+
+[vector43]
+pos = [14, 3]
+angle = 1.53588974175501
+
+[vector44]
+pos = [15, 3]
+angle = 3.141592653589793
+
+[vector45]
+pos = [16, 3]
+angle = 3.141592653589793
+
+[vector46]
+pos = [17, 3]
+angle = 3.141592653589793
+
+[vector47]
+pos = [17, 4]
+angle = 1.6057029118347832
+
+[vector48]
+pos = [16, 4]
+angle = 0.0
+
+[vector49]
+pos = [15, 4]
+angle = 0.0
+
+[vector50]
+pos = [14, 4]
+angle = 0.0
+
+[vector51]
+pos = [13, 4]
+angle = 0.0
+
+[vector52]
+pos = [12, 4]
+angle = 0.0
+
+[vector53]
+pos = [11, 4]
+angle = 0.0
+
+[vector54]
+pos = [10, 4]
+angle = 0.0
+
+[vector55]
+pos = [9, 4]
+angle = 0.0
+
+[vector56]
+pos = [8, 4]
+angle = 0.0
+
+[vector57]
+pos = [7, 4]
+angle = 0.0
+
+[vector58]
+pos = [6, 4]
+angle = 0.0
+
+[vector59]
+pos = [6, 5]
+angle = 1.53588974175501
+
+[vector60]
+pos = [7, 5]
+angle = 3.141592653589793
+
+[vector61]
+pos = [8, 5]
+angle = 3.141592653589793
+
+[vector62]
+pos = [9, 5]
+angle = 3.141592653589793
+
+[vector63]
+pos = [10, 5]
+angle = 3.141592653589793
+
+[vector64]
+pos = [11, 5]
+angle = 3.141592653589793
+
+[vector65]
+pos = [12, 5]
+angle = 3.141592653589793
+
+[vector66]
+pos = [13, 5]
+angle = 3.141592653589793
+
+[vector67]
+pos = [14, 5]
+angle = 3.141592653589793
+
+[vector68]
+pos = [15, 5]
+angle = 3.141592653589793
+
+[vector69]
+pos = [16, 5]
+angle = 3.141592653589793
+
+[vector70]
+pos = [17, 5]
+angle = 3.141592653589793
+
+[vector71]
+pos = [17, 6]
+angle = 1.6057029118347832
+
+[vector72]
+pos = [16, 6]
+angle = 0.0
+
+[vector73]
+pos = [15, 6]
+angle = 0.0
+
+[vector74]
+pos = [14, 6]
+angle = 0.0
+
+[vector75]
+pos = [13, 6]
+angle = 0.0
+
+[vector76]
+pos = [12, 6]
+angle = 0.0
+
+[vector77]
+pos = [11, 6]
+angle = 0.0
+
+[vector78]
+pos = [10, 6]
+angle = 0.0
+
+[vector79]
+pos = [9, 6]
+angle = 0.0
+
+[vector80]
+pos = [8, 6]
+angle = 0.0
+
+[vector81]
+pos = [7, 6]
+angle = 0.0
+
+[vector82]
+pos = [6, 6]
+angle = 0.0
+
+[vector83]
+pos = [6, 7]
+angle = 1.53588974175501
 
