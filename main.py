@@ -585,8 +585,6 @@ class Pedestrian:
         self.gate = random.randrange(Gate.N)
         self.dest = Vec2(50, 50)
         # self.color = color if color is not None else pygame.Color("#FDFBD4")
-        self.def_color = self.color = color if color is not None else pygame.Color("#0F4C5C")
-        # self.def_color = self.color = [random.randint(0, 255) for _ in range(3)]
         self.def_color = self.color = random.choice(palette)
         self.waiting_color = pygame.Color("#990000")
         # driving term
@@ -625,8 +623,7 @@ class Pedestrian:
         if self.area.wait_mode == "queue":
             # ONLY WHEN IN A QUEUE!
             dest_rect = pygame.Rect((self.dest[0] - g.grid / 2, self.dest[1] - g.grid / 2, g.grid, g.grid))
-            if dest_rect.center != self.area.queue_initiator_rect.center:
-                pygame.draw.rect(WIN, self.color, dest_rect)
+            pygame.draw.rect(WIN, self.color, dest_rect)
             # check if it has to follow ground arrows (vector field)
             if self.follow_vectors and grid_pos in vector_field:
                 vector = vector_field[grid_pos]
@@ -637,22 +634,7 @@ class Pedestrian:
             # check if colliding with dest
             if dest_rect.collidepoint(self.pos):
                 # check if there are empty venues
-                child = pool[self.area.children[0]]
-                if child.get_num_available_attractors() > 0:
-                    if dest_rect.center == self.area.attractor_rects[0].center:
-                        # can go because there is empty venue, so move everyone behind him one forward as well
-                        for i in range(len(self.area.pedestrians) - 1, -1, -1):
-                            if self.area.pedestrians[i].dest == self.area.queue_initiator_rect.center:
-                                continue
-                            if i == 0:
-                                continue
-                            self.area.pedestrians[i].dest = Vec2(self.area.pedestrians[i - 1].dest)
-                        self.area.available_attractor_index -= 1
-                        self.area.pedestrians.remove(self)
-                        child.new_ped(self)
-                else:
-                    # nope, venues are full, cannot follow vectors, must come to halt and stop
-                    self.follow_vectors = False
+                pass
         else:
             self.e = (self.dest - self.pos) / (self.dest - self.pos).length()
             self.color = self.def_color
@@ -709,6 +691,8 @@ class Pedestrian:
         pygame.draw.line(WIN, (0, 255, 0), self.pos, self.pos + self.vel * m, 2)
         pygame.draw.line(WIN, (255, 140, 0), self.pos, self.pos + self.acc * m * 7, 2)
         pygame.draw.line(WIN, pygame.Color("brown"), self.pos, self.pos + (self.dest - self.pos).normalize() * m * 4, 2)
+        w = "v" if self.follow_vectors else "d"
+        WIN.blit(font.render(w, True, (0, 0, 0)), self.pos)
     
 
 class Gate:
@@ -879,24 +863,20 @@ class Area(Node):
         if self.wait_mode == "att":
             self.attractor_waiting_data[ped.att_index].remove(ped)
         self.pedestrians.remove(ped)
-        
-    def new_queue_ped(self, ped):
-        ped.att_index = 0
-        try:
-            ped.dest = self.attractors[self.available_attractor_index]
-        except IndexError:
-            ped.dest = self.attractors[0]
-        self.available_attractor_index += 1
+    
+    def assign_queue_pos(self, ped):
+        pass
 
     def new_ped(self, ped):
-        dont = False
         ped.area = self
         ped.pving = False
         if self.wait_mode == "queue":
             ped.dest = self.queue_initiator_rect.center
-            ped.follow_vectors = True
-        
-        elif self.wait_mode == "att":
+            ped.follow_vectors = False
+        else:
+            ped.follow_vectors = False
+
+        if self.wait_mode == "att":
             if self.attractors:
                 ped.att_index = self.get_available_attractor()
                 if ped.att_index is not None:
@@ -909,21 +889,22 @@ class Area(Node):
         elif self.wait_mode == "pv":
             ped.dest = self.rect.center
 
-        if not dont:
-            ped.waiting = False
-            ped.wait = self.get_wait()
-            self.pedestrians.append(ped)
+        ped.waiting = False
+        ped.wait = self.get_wait()
+        self.pedestrians.append(ped)
 
     def draw(self):
         if self.wait_mode == "queue":
             pygame.draw.rect(WIN, pygame.Color("orange"), self.queue_initiator_rect, 3)
             pygame.draw.rect(WIN, pygame.Color("green"), self.attractor_rects[0], 3)
             pygame.draw.rect(WIN, pygame.Color("CYAN"), self.attractor_rects[self.available_attractor_index], 3)
+            WIN.blit(font.render(str(len(self.pedestrians)), True, (0, 0, 255)), self.queue_initiator_rect.center)
         else:
             pygame.draw.rect(WIN, (170, 170, 170), self.area)
             pygame.draw.rect(WIN, (100, 100, 100), self.area, 3)
             for pos in self.attractors:
                 pygame.draw.circle(WIN, pygame.Color("#B2D3C2"), pos, 5)
+            WIN.blit(font.render(str(len(self.pedestrians)), True, (0, 0, 255)), self.rect.center)
 
     def update(self):
         self.draw()
@@ -931,11 +912,15 @@ class Area(Node):
         for ped in self.pedestrians.copy():
             i += 1
             ped.update(dt=1)
-            # did the pedestrian enter the initiator point of the queue?
             if self.wait_mode == "queue":
-                if self.queue_initiator_rect.collidepoint(ped.pos):
-                    if ped.dest == self.queue_initiator_rect.center:
-                        self.new_queue_ped(ped)
+                # is the pedestrian going towards initiator?
+                if ped.dest == self.queue_initiator_rect.center:
+                    # did the pedestrian collide with it?
+                    if self.queue_initiator_rect.collidepoint(ped.pos):
+                        ped.follow_vectors = True
+                        ped.dest = self.attractor_rects.pop(0).center
+                # did the pedestrian get to the front of the queue?
+                pass
             # does pedestrian need to start waiting at the area attractor?
             elif self.wait_mode == "att":
                 if (ped.dest - ped.pos).length() <= 1.8 or ped.area.rect.collidepoint(ped.pos):
@@ -951,7 +936,7 @@ class Area(Node):
                         all_pedestrians.remove(ped)
                     else:
                         ped.start_pv()
-            # does pedestrian need to go to next place?
+            # did pedestrian wait long enough?
             if self.children and ped.waiting:
                 if ticks() - ped.last_wait >= ped.wait:
                     self.release_ped(ped)

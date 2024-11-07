@@ -17,7 +17,7 @@ invisible = false
 [spawnerMain]
 line = [[360.0, 780.0], [420.0, 780.0]]
 wait = 100000
-limit = 10
+limit = 5
 children = ['areaQueueTicket']
 chances = [1]
 
