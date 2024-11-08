@@ -16,10 +16,10 @@ invisible = false
 
 [spawnerMain]
 line = [[360.0, 780.0], [420.0, 780.0]]
-wait = 100000
-limit = 10
-children = ['areaQueueTicket']
-chances = [1]
+wait = 500
+limit = 30
+children = ['areaQueueTicket', 'areaKiosk']
+chances = [0.9, 0.1]
 
 [areaQueueTicket]
 area = [0, 0, 1, 1]
@@ -33,9 +33,18 @@ queue_initiator = 43
 
 [areaTicket]
 area = [30, 270, 30, 330]
-dimensions = [1, 4]
+dimensions = [1, 6]
 wait_mode = "att"
 wait = "UNIFORM(1000, 3000)"
+kill = false
+children = ['areaQueueSecurity']
+chances = [1]
+
+[areaKiosk]
+area = [450, 300, 150, 30]
+dimensions = [5, 1]
+wait_mode = "att"
+wait = 3000
 kill = false
 children = ['areaQueueSecurity']
 chances = [1]
@@ -139,11 +148,6 @@ invisible = false
 
 [polygon16]
 points = [[540.0, 210.0], [210.0, 210.0]]
-connect = false
-invisible = false
-
-[polygon17]
-points = [[210.0, 240.0], [210.0, 210.0]]
 connect = false
 invisible = false
 

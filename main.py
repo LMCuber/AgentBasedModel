@@ -20,6 +20,10 @@ from time import perf_counter
 
 
 # functions
+def chance(x):
+    return random.random() < x
+
+
 def weibull(u, l, k):
     return l * (-ln(1 - u)) ** (1 / k)
 
@@ -549,7 +553,7 @@ class Spawner(Node):
     
     def update(self):
         if not g.edit:
-            if self.children and ticks() - self.last_time >= 1000:
+            if self.children and ticks() - self.last_time >= self.wait:
                 if self.spawned < self.limit:
                     x = self.line[0][0] + random.randint(0, self.w)
                     y = self.line[0][1] + random.randint(0, self.h)
@@ -590,9 +594,11 @@ class Pedestrian:
         self.pos = Vec2(x, y)
         self.gate = random.randrange(Gate.N)
         self.dest = Vec2(50, 50)
-        # self.color = color if color is not None else pygame.Color("#FDFBD4")
+        # simulation parameters
+        self.has_baggage = chance(0.976)
+        # self.def_color = self.color = pygame.Color("brown") if self.has_baggage else pygame.Color("lightgray")
         self.def_color = self.color = random.choice(palette)
-        self.waiting_color = pygame.Color("#990000")
+        self.waiting_color = self.def_color
         # driving term
         self.v0 = clamp(random.gauss(walk.mu, walk.sigma), walk.min, walk.max)
         self.v0 = 1.8
@@ -698,8 +704,10 @@ class Pedestrian:
         pygame.draw.line(WIN, (0, 255, 0), self.pos, self.pos + self.vel * m, 2)
         pygame.draw.line(WIN, (255, 140, 0), self.pos, self.pos + self.acc * m * 7, 2)
         pygame.draw.line(WIN, pygame.Color("brown"), self.pos, self.pos + (self.dest - self.pos).normalize() * m * 4, 2)
-        w = "v" if self.follow_vectors else "d"
-        WIN.blit(font.render(w, True, (0, 0, 0)), self.pos)
+        w = "o"
+        surf = font.render(w, True, (0, 0, 0))
+        rect = surf.get_rect(center=self.pos)
+        WIN.blit(surf, rect)
     
 
 class Gate:
