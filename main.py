@@ -511,7 +511,7 @@ class Pedestrian:
         self.def_color = self.color = [random.randint(0, 255) for _ in range(3)]
         self.waiting_color = pygame.Color("#990000")
         # driving term
-        self.v0 = 1.6 * clamp(random.gauss(walk.mu, walk.sigma), walk.min, walk.max)
+        self.v0 = 1.2 * clamp(random.gauss(walk.mu, walk.sigma), walk.min, walk.max)
         self.pving = False
         self.vel = Vec2(0, 0)
         self.acc = Vec2(0, 0)

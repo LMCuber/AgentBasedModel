@@ -20,7 +20,7 @@ connect = false
 invisible = true
 
 [spawner0]
-line = [[284.0, 660.0], [286.0, 660.0]]
+line = [[275.0, 660.0], [295.0, 660.0]]
 wait = 500
 limit = 40
 children = ['areaQueue']
