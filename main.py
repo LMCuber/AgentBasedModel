@@ -540,7 +540,7 @@ class Spawner(Node):
             for _ in range(30):
                 x = wait_from_weibull(2.3, 6, 0.000001, 0.999, 30)
                 self.flight_times[before].append(x)
-        print(self.flight_times)
+        # print(self.flight_times)
     
     def draw(self):
         for p in self.line:
@@ -549,7 +549,7 @@ class Spawner(Node):
     
     def update(self):
         if not g.edit:
-            if self.children and ticks() - self.last_time >= 400:
+            if self.children and ticks() - self.last_time >= 1000:
                 if self.spawned < self.limit:
                     x = self.line[0][0] + random.randint(0, self.w)
                     y = self.line[0][1] + random.randint(0, self.h)
@@ -609,6 +609,7 @@ class Pedestrian:
         self.A_ob = 3
         self.B_ob = 1
         self.follow_vectors = True
+        self.passed_initiator = False
         # interactive term (with other pedestrians)
         self.A_ped = 0.08
         self.B_ped = 4
@@ -839,6 +840,7 @@ class Area(Node):
             self.attractor_rects = [pygame.Rect(pos[0] * g.grid, pos[1] * g.grid, g.grid, g.grid) for pos in self.queue_positions]
             self.attractors = [rect.center for rect in self.attractor_rects]
             self.queue_initiator_rect = self.attractor_rects[self.queue_initiator]
+            self.queue_pedestrians = []
 
     def get_num_available_attractors(self):
         return sum([not bool(data) for data in self.attractor_waiting_data])
@@ -859,6 +861,7 @@ class Area(Node):
     def new_ped(self, ped):
         ped.area = self
         ped.pving = False
+        ped.passed_initiator = False
         if self.wait_mode == "queue":
             ped.dest = self.queue_initiator_rect.center
             ped.follow_vectors = False
@@ -907,18 +910,31 @@ class Area(Node):
                     # did the pedestrian collide with it?
                     if self.queue_initiator_rect.collidepoint(ped.pos):
                         ped.follow_vectors = True
+                        ped.passed_initiator = True
                         ped.dest = self.attractor_rects[self.available_attractor_index].center
                         self.available_attractor_index += 1
-                # did the pedestrian get to the front of the queue?
+                # pedestrian going with the queue flow. Did the pedestrian get to the front of the queue?
                 else:
                     # did the pedestrian collide with it?
                     balie = pool[self.children[0]]
                     dest_rect = pygame.Rect((ped.dest[0] - g.grid / 2, ped.dest[1] - g.grid / 2, g.grid, g.grid))
                     # collide with balie?
                     if dest_rect.collidepoint(ped.pos):
-                        if balie.get_num_available_attractors() == 4:
-                            balie.new_ped(ped)
+                        if balie.get_num_available_attractors() > 0:
+                            # there is empty place, shift all pedestrians forward!
+                            # but first, sort them by depth in the queue!
+                            peds_to_move = [p for p in sorted(self.pedestrians, key=lambda i: self.attractors.index(i.dest)) if p.passed_initiator]
+                            for i in range(len(peds_to_move) - 1, -1, -1):
+                                ped = peds_to_move[i]
+                                if i == 0:
+                                    # the first one in line, so go go go !
+                                    self.release_ped(ped)
+                                    balie.new_ped(ped)
+                                else:
+                                    ped.dest = peds_to_move[i - 1].dest
+                            self.available_attractor_index -= 1
                         else:
+                            # welp, there is no place, you have to wait (if not waiting already)
                             if ped.follow_vectors:
                                 ped.follow_vectors = False
             # does pedestrian need to start waiting at the area attractor?

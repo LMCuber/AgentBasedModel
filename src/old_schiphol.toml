@@ -17,7 +17,7 @@ invisible = false
 [spawnerMain]
 line = [[360.0, 780.0], [420.0, 780.0]]
 wait = 100000
-limit = 5
+limit = 10
 children = ['areaQueueTicket']
 chances = [1]
 
@@ -35,7 +35,7 @@ queue_initiator = 43
 area = [30, 270, 30, 330]
 dimensions = [1, 4]
 wait_mode = "att"
-wait = "UNIFORM(500, 3000)"
+wait = "UNIFORM(1000, 3000)"
 kill = false
 children = ['areaQueueSecurity']
 chances = [1]
