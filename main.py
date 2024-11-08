@@ -262,8 +262,14 @@ class Global:
                         g.running = False
                     
                     elif event.key == pygame.K_q:
-                        print(ticks() - g.last)
-                        g.running = False
+                        # print(ticks() - g.last)
+                        # g.running = False
+                        peds = pool["areaQueueTicket"].pedestrians
+                        for i in range(len(peds) - 1, -1, -1):
+                            if i == 0:
+                                peds[i].dest = (10, 10)
+                            else:
+                                peds[i].dest = peds[i - 1].dest
                     
                 elif event.type == pygame.MOUSEWHEEL:
                     editor.vec_angle += event.y * 4
@@ -799,20 +805,6 @@ class Revolver(AbstractObstacle):
             yield dist_point_to_line_segment(self.p1, p2, other.pos)
 
 
-class Queue:
-    def __init__(self, points):
-        self.points = points
-        self.available_point = 0
-    
-    def get_point(self):
-        self.available_point += 1
-        return self.points[self.available_point - 1]
-    
-    def update(self):
-        for point in self.points:
-            pygame.draw.circle(WIN, DARK_GRAY, point, 5)
-
-
 class Area(Node):
     def __init__(self, name, area, dimensions, wait_mode="pv", wait=None, kill=False, children=None, chances=None, queue=False, queue_positions=None, queue_initiator=None, code=None):
         self.toml_attrs = ("area", "dimensions", "wait_mode", "wait", "kill", "children", "chances", "queue_positions","queue_initiator", "code")
@@ -864,9 +856,6 @@ class Area(Node):
             self.attractor_waiting_data[ped.att_index].remove(ped)
         self.pedestrians.remove(ped)
     
-    def assign_queue_pos(self, ped):
-        pass
-
     def new_ped(self, ped):
         ped.area = self
         ped.pving = False
@@ -918,9 +907,20 @@ class Area(Node):
                     # did the pedestrian collide with it?
                     if self.queue_initiator_rect.collidepoint(ped.pos):
                         ped.follow_vectors = True
-                        ped.dest = self.attractor_rects.pop(0).center
+                        ped.dest = self.attractor_rects[self.available_attractor_index].center
+                        self.available_attractor_index += 1
                 # did the pedestrian get to the front of the queue?
-                pass
+                else:
+                    # did the pedestrian collide with it?
+                    balie = pool[self.children[0]]
+                    dest_rect = pygame.Rect((ped.dest[0] - g.grid / 2, ped.dest[1] - g.grid / 2, g.grid, g.grid))
+                    # collide with balie?
+                    if dest_rect.collidepoint(ped.pos):
+                        if balie.get_num_available_attractors() == 4:
+                            balie.new_ped(ped)
+                        else:
+                            if ped.follow_vectors:
+                                ped.follow_vectors = False
             # does pedestrian need to start waiting at the area attractor?
             elif self.wait_mode == "att":
                 if (ped.dest - ped.pos).length() <= 1.8 or ped.area.rect.collidepoint(ped.pos):
