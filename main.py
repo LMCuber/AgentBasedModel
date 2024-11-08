@@ -5,6 +5,7 @@ import cProfile
 import random
 from dataclasses import dataclass
 from math import e, cos, sin, log10, floor, exp, pi, degrees, radians
+from math import log as ln
 from enum import Enum
 from pygame.time import get_ticks as ticks
 import tomllib as toml
@@ -14,9 +15,35 @@ import numpy as np
 from pathlib import Path
 from contextlib import suppress
 from itertools import product
+import matplotlib.pyplot as plt
+from time import perf_counter
 
 
 # functions
+def weibull(u, l, k):
+    return l * (-ln(1 - u)) ** (1 / k)
+
+
+def wait_from_weibull(l, k, unit_min, unit_max, scale):
+    while not (unit_min <= (u := random.random()) <= unit_max):
+        pass
+    if u == 1:
+        u -= 0.0000001
+    t = weibull(u, l, k)
+    value_min = weibull(0.00000001, l, k)
+    value_max = weibull(0.99999999, l, k)
+    ratio = t / value_max
+    value = (1 - ratio) * scale
+    return value
+
+
+# plt.hist([wait_from_weibull(2.3, 6, 0.000001, 0.999, 200) for _ in range(1_000_000)], bins=100)
+# plt.gca().invert_xaxis()
+# plt.gca().set_xlim([200, 0])
+# plt.show()
+# raise
+
+
 def save(toml_path):
     with open(toml_path, "w") as toml_file:
         toml_file.write(g.get_toml())
@@ -67,6 +94,10 @@ def load_model(path):
                 del v["name"]
                 vector = FieldVector(**v)
                 vector_field[pos] = vector
+            elif k.startswith("revolver"):
+                rev = Revolver(**v)
+                pool[k] = rev
+                all_obstacles.append(rev)
 
 
 def grid_to_pos(x, y):
@@ -79,13 +110,13 @@ def roundn(x, base):
 
 def save_heatmap():
     global heatmap
-    heatmap_surf = pygame.Surface((g.width, g.height))
+    heatmap_surf = pygame.Surface((g.width // g.grid, g.height // g.grid))
     heatmap /= heatmap.max()
-    for y in range(g.height):
-        for x in range(g.width):
+    for y in range(heatmap_surf.height):
+        for x in range(heatmap_surf.width):
             color = lerp_heatmap(heatmap[y, x])
             heatmap_surf.set_at((x, y), color)
-    # pygame.image.save(heatmap_surf, Path("res", "heatmap.png"))
+    pygame.image.save(heatmap_surf, Path("res", "heatmap.png"))
 
 
 def lerp_heatmap(i):
@@ -187,7 +218,7 @@ def sigfig(x: float, precision: int):
     x = float(x)
     precision = int(precision)
     return round(x, -int(floor(log10(abs(x)))) + (precision - 1))
-  
+
 
 # classes
 class Global:
@@ -201,6 +232,8 @@ class Global:
         self.edit = edit
         self.last = ticks()
         self.running = False
+        self.last_start = ticks()
+        self.i = 120
     
     def get_toml(self):
         ret = f"[global]\n"
@@ -215,7 +248,7 @@ class Global:
         # mainloop
         g.running = __name__ == "__main__"
         while g.running:
-            dt = clock.tick(self.target_fps) / 1000 / (1 / 120)
+            dt = clock.tick(g.i) / 1000 / (1 / 120)
         
             for event in pygame.event.get():
                 editor.process_event(event)
@@ -231,9 +264,11 @@ class Global:
                     elif event.key == pygame.K_q:
                         print(ticks() - g.last)
                         g.running = False
-                
+                    
                 elif event.type == pygame.MOUSEWHEEL:
                     editor.vec_angle += event.y * 4
+                    g.i += event.y
+                    g.i = max(0, g.i)
                 
             # clearing window
             if self.edit:
@@ -261,7 +296,9 @@ class Global:
                 ped.draw()
             
             for ob in all_obstacles:
-                ob.update()
+                if not g.draw:
+                    ob.update()
+                ob.draw()
    
             # displaying fps (veri important)
             text = f"{int(clock.get_fps())}\nPedestrians: {len(pedestrians_to_draw)}"
@@ -271,13 +308,23 @@ class Global:
                 surf = font.render("[DRAW MODE]", True, BLACK)
                 rect = surf.get_rect(midtop=(g.width / 2, 60))
                 WIN.blit(surf, rect)
+            
+            # display the time
+            elapsed_ms = (ticks() - self.last_start)
+            hours = floor(elapsed_ms / (3.6 * 10 ** 6) % 24)
+            minutes = floor(elapsed_ms / 60_000 % 60)
+            seconds = floor(elapsed_ms / 1000 % 60)
+            millis = floor(elapsed_ms % 1000)
+            time = f"{hours if len(str(hours)) > 1 else "0" + str(hours)}:{minutes if len(str(minutes)) > 1 else "0" + str(minutes)}:{seconds if len(str(seconds)) > 1 else "0" + str(seconds)}"
+            surf = font.render(str(time), True, BLACK)
+            WIN.blit(surf, (200, 10))
 
             editor.update()
         
             # flip the display
             pygame.display.flip()
 
-        save(Path("src", "save.toml"))
+        save(model_path)
 
 
 class EditorModes(Enum):
@@ -287,6 +334,7 @@ class EditorModes(Enum):
     AREA = 2
     SPAWNER = 3
     VECTOR = 4
+    REVOLVER = 5
 
 
 class Editor:
@@ -341,7 +389,13 @@ class Editor:
                 elif self.mode == EditorModes.VECTOR:
                     v = FieldVector(radians(editor.vec_angle))
                     indexes = tuple(p // g.grid for p in self.placing_pos)
+                    print(indexes)
                     vector_field[indexes] = v
+                
+                elif self.mode == EditorModes.REVOLVER:
+                    name = Revolver.get_name()
+                    r = Revolver(name, self.placing_pos, 4, 40, 0.25)
+                    pool[name] = r
 
             elif event.button == 3:
                 if self.mode == EditorModes.POLYGON:
@@ -368,7 +422,8 @@ class Editor:
                     50: EditorModes.RECT,
                     51: EditorModes.AREA,
                     52: EditorModes.SPAWNER,
-                    53: EditorModes.VECTOR
+                    53: EditorModes.VECTOR,
+                    54: EditorModes.REVOLVER,
                 }.get(event.key, self.mode)
     
     def update(self):
@@ -472,6 +527,14 @@ class Spawner(Node):
         self.limit = limit
         self.spawned = 0
         self.color = color
+
+
+        self.flight_times = {30: []}
+        for before in self.flight_times.keys():
+            for _ in range(30):
+                x = wait_from_weibull(2.3, 6, 0.000001, 0.999, 30)
+                self.flight_times[before].append(x)
+        print(self.flight_times)
     
     def draw(self):
         for p in self.line:
@@ -480,7 +543,7 @@ class Spawner(Node):
     
     def update(self):
         if not g.edit:
-            if self.children and ticks() - self.last_time >= self.wait:
+            if self.children and ticks() - self.last_time >= 400:
                 if self.spawned < self.limit:
                     x = self.line[0][0] + random.randint(0, self.w)
                     y = self.line[0][1] + random.randint(0, self.h)
@@ -494,6 +557,21 @@ class Spawner(Node):
                     self.wait = self.get_wait()
                 else:
                     pass
+
+            for flight_time, times in self.flight_times.items():
+                continue
+                time_until_flight = flight_time - (ticks() - g.last_start) / 1000
+                for i, time in enumerate(times):
+                    if time_until_flight <= time:
+                        x = self.line[0][0]
+                        y = self.line[0][1]
+                        ped = Pedestrian(x, y, color=self.color)
+
+                        pool[self.get_child()].new_ped(ped)
+                        all_pedestrians.append(ped)
+                        del times[i]
+                        self.spawned += 1
+
         self.draw()
 
 
@@ -507,11 +585,11 @@ class Pedestrian:
         self.gate = random.randrange(Gate.N)
         self.dest = Vec2(50, 50)
         # self.color = color if color is not None else pygame.Color("#FDFBD4")
-        self.def_color = self.color = color if color is not None else pygame.Color("#0F4C5C")
-        self.def_color = self.color = [random.randint(0, 255) for _ in range(3)]
+        self.def_color = self.color = random.choice(palette)
         self.waiting_color = pygame.Color("#990000")
         # driving term
-        self.v0 = 1.2 * clamp(random.gauss(walk.mu, walk.sigma), walk.min, walk.max)
+        self.v0 = clamp(random.gauss(walk.mu, walk.sigma), walk.min, walk.max)
+        self.v0 = 1.8
         self.pving = False
         self.vel = Vec2(0, 0)
         self.acc = Vec2(0, 0)
@@ -520,7 +598,7 @@ class Pedestrian:
         self.iacc = Vec2(0, 0)
         self.t = 10
         # general term
-        self.r = 7
+        self.r = 0.25 * g.grid
         # obstacle term
         self.A_ob = 3
         self.B_ob = 1
@@ -533,7 +611,6 @@ class Pedestrian:
         if not self.waiting:
             self.last_wait = ticks()
             self.waiting = True
-            # self.area.attractor_waiting_data[self.att_index].append(self)  # append when actually at location
     
     def start_pv(self):
         self.start_waiting()
@@ -544,36 +621,24 @@ class Pedestrian:
         grid_y = int(self.pos.y / g.grid)
         grid_pos = (grid_x, grid_y)
         if self.area.wait_mode == "queue":
+            # ONLY WHEN IN A QUEUE!
             dest_rect = pygame.Rect((self.dest[0] - g.grid / 2, self.dest[1] - g.grid / 2, g.grid, g.grid))
             pygame.draw.rect(WIN, self.color, dest_rect)
             # check if it has to follow ground arrows (vector field)
-            if self.follow_vectors:
-                if grid_pos in vector_field:
-                    vector = vector_field[grid_pos]
-                    angle = vector.angle
-                    self.e = Vec2(cos(angle), -sin(angle))
+            if self.follow_vectors and grid_pos in vector_field:
+                vector = vector_field[grid_pos]
+                angle = vector.angle
+                self.e = Vec2(cos(angle), -sin(angle))
             else:
                 self.e = (self.dest - self.pos) / (self.dest - self.pos).length()
-            # check if in front of the queue
+            # check if colliding with dest
             if dest_rect.collidepoint(self.pos):
                 # check if there are empty venues
-                child = pool[self.area.children[0]]
-                if child.get_num_available_attractors() > 0:
-                    # can go because tehre is empty venue
-                    if dest_rect.center == self.area.attractor_data[0]:
-                        for i in range(len(self.area.pedestrians) - 1, -1, -1):
-                            if i == 0:
-                                continue
-                            self.area.pedestrians[i].dest = Vec2(self.area.pedestrians[i - 1].dest)
-                        self.area.available_attractor_index -= 1
-                        self.area.pedestrians.remove(self)
-                        child.new_ped(self)
-                else:
-                    # nope, venues are full, cannot follow vectors, must come to halt and stop
-                    self.follow_vectors = False
+                pass
         else:
             self.e = (self.dest - self.pos) / (self.dest - self.pos).length()
             self.color = self.def_color
+       
         desired_vel = (0 if self.pving else self.v0) * self.e
         delta_vel = desired_vel - self.vel
         return 1 / self.t * delta_vel
@@ -613,7 +678,7 @@ class Pedestrian:
         # draw
         pedestrians_to_draw.append(self)
         # update heatmap
-        # heatmap[int(self.pos.y), int(self.pos.x)] += 1
+        # heatmap[int(self.pos.y / g.grid), int(self.pos.x / g.grid)] += 1
     
     def draw(self):
         color = self.color
@@ -626,6 +691,8 @@ class Pedestrian:
         pygame.draw.line(WIN, (0, 255, 0), self.pos, self.pos + self.vel * m, 2)
         pygame.draw.line(WIN, (255, 140, 0), self.pos, self.pos + self.acc * m * 7, 2)
         pygame.draw.line(WIN, pygame.Color("brown"), self.pos, self.pos + (self.dest - self.pos).normalize() * m * 4, 2)
+        w = "v" if self.follow_vectors else "d"
+        WIN.blit(font.render(w, True, (0, 0, 0)), self.pos)
     
 
 class Gate:
@@ -656,7 +723,7 @@ class Obstacle(AbstractObstacle):
         self.rect = self.image.get_frect(topleft=(x, y))
     
     def update(self):
-        self.draw()
+        pass
     
     @property
     def xy(self):
@@ -678,7 +745,7 @@ class Polygon(AbstractObstacle):
             self.points.append(self.points[0])
     
     def update(self):
-        self.draw()
+        pass
     
     def draw(self):
         pygame.draw.lines(WIN, BLACK, False, self.points, 1 if self.invisible else 5)
@@ -694,7 +761,7 @@ class Polygon(AbstractObstacle):
 
 
 class FieldVector(Node):
-    def __init__(self, angle, queue_for=None):
+    def __init__(self, angle):
         self.angle = angle
         self.image = pygame.transform.rotozoom(vector_image, degrees(angle), 1)
         self.rect = vector_image.get_rect()
@@ -705,7 +772,9 @@ class FieldVector(Node):
 
 
 class Revolver(AbstractObstacle):
-    def __init__(self, p1, n, l, av):
+    def __init__(self, name, p1, n, l, av):
+        self.toml_attrs = ("p1", "n", "l", "av")
+        self.name = name
         self.p1 = Vec2(p1)
         self.n = n
         self.l = l
@@ -714,6 +783,9 @@ class Revolver(AbstractObstacle):
         self.p2s = [Vec2(0, 0) for _ in range(self.n)]
     
     def update(self):
+        pass
+    
+    def draw(self):
         self.angle += self.av
         for i in range(self.n):
             a = self.angle + i * (2 * pi) / self.n
@@ -742,8 +814,8 @@ class Queue:
 
 
 class Area(Node):
-    def __init__(self, name, area, dimensions, wait_mode="pv", wait=None, kill=False, children=None, chances=None, queue=False, queuePositions=None, code=None):
-        self.toml_attrs = ("area", "dimensions", "wait_mode", "wait", "kill", "children", "chances", "queuePositions", "code")
+    def __init__(self, name, area, dimensions, wait_mode="pv", wait=None, kill=False, children=None, chances=None, queue=False, queue_positions=None, queue_initiator=None, code=None):
+        self.toml_attrs = ("area", "dimensions", "wait_mode", "wait", "kill", "children", "chances", "queue_positions","queue_initiator", "code")
         self.name = name
         self.area = area
         self.rect = pygame.Rect(area)
@@ -752,7 +824,6 @@ class Area(Node):
         self.num_x, self.num_y = self.dimensions
         #
         self.attractors = []
-        self.attractor_data = []
         for y in range(self.num_y):
             for x in range(self.num_x):
                 center = (self.rect.x + x / self.num_x * self.rect.width + g.grid / 2, self.rect.y + y / self.num_y * self.rect.height + g.grid / 2)
@@ -768,13 +839,14 @@ class Area(Node):
         self.get_wait = parse_wait(wait)
         self.wait_mode = wait_mode
         self.wait = wait
-        self.queuePositions = queuePositions
+        self.queue_positions = queue_positions
+        self.queue_initiator = queue_initiator
         self.code = code
 
-        if self.name == "areaQueue":
-            self.attractor_rects = [pygame.Rect(pos[0] * g.grid, pos[1] * g.grid, g.grid, g.grid) for pos in self.queuePositions]
+        if self.wait_mode == "queue":
+            self.attractor_rects = [pygame.Rect(pos[0] * g.grid, pos[1] * g.grid, g.grid, g.grid) for pos in self.queue_positions]
             self.attractors = [rect.center for rect in self.attractor_rects]
-            self.attractor_data = [rect.center for rect in self.attractor_rects]
+            self.queue_initiator_rect = self.attractor_rects[self.queue_initiator]
 
     def get_num_available_attractors(self):
         return sum([not bool(data) for data in self.attractor_waiting_data])
@@ -788,18 +860,22 @@ class Area(Node):
             return index
     
     def release_ped(self, ped):
-        self.attractor_waiting_data[ped.att_index].remove(ped)
+        if self.wait_mode == "att":
+            self.attractor_waiting_data[ped.att_index].remove(ped)
         self.pedestrians.remove(ped)
     
+    def assign_queue_pos(self, ped):
+        pass
+
     def new_ped(self, ped):
-        dont = False
+        ped.area = self
+        ped.pving = False
         if self.wait_mode == "queue":
-            ped.area = self
-            ped.att_index = 0
-            # ped.dest = self.attractors.pop(ped.att_index)
-            ped.dest = self.attractors[self.available_attractor_index]
-            self.available_attractor_index += 1
-        
+            ped.dest = self.queue_initiator_rect.center
+            ped.follow_vectors = False
+        else:
+            ped.follow_vectors = False
+
         if self.wait_mode == "att":
             if self.attractors:
                 ped.att_index = self.get_available_attractor()
@@ -808,51 +884,64 @@ class Area(Node):
                     ped.dest = self.attractors[ped.att_index]
             else:
                 ped.dest = self.rect.center
+            self.attractor_waiting_data[ped.att_index].append(ped)
+
         elif self.wait_mode == "pv":
             ped.dest = self.rect.center
 
-        self.attractor_waiting_data[ped.att_index].append(ped)
-        
-        if not dont:
-            ped.waiting = False
-            ped.wait = self.get_wait()
-            self.pedestrians.append(ped)
+        ped.waiting = False
+        ped.wait = self.get_wait()
+        self.pedestrians.append(ped)
 
     def draw(self):
-        pygame.draw.rect(WIN, (170, 170, 170), self.area)
-        pygame.draw.rect(WIN, (100, 100, 100), self.area, 3)
-        for pos in self.attractors:
-            pygame.draw.circle(WIN, pygame.Color("#B2D3C2"), pos, 5)
+        if self.wait_mode == "queue":
+            pygame.draw.rect(WIN, pygame.Color("orange"), self.queue_initiator_rect, 3)
+            pygame.draw.rect(WIN, pygame.Color("green"), self.attractor_rects[0], 3)
+            pygame.draw.rect(WIN, pygame.Color("CYAN"), self.attractor_rects[self.available_attractor_index], 3)
+            WIN.blit(font.render(str(len(self.pedestrians)), True, (0, 0, 255)), self.queue_initiator_rect.center)
+        else:
+            pygame.draw.rect(WIN, (170, 170, 170), self.area)
+            pygame.draw.rect(WIN, (100, 100, 100), self.area, 3)
+            for pos in self.attractors:
+                pygame.draw.circle(WIN, pygame.Color("#B2D3C2"), pos, 5)
+            WIN.blit(font.render(str(len(self.pedestrians)), True, (0, 0, 255)), self.rect.center)
 
     def update(self):
-        if self.wait_mode != "queue":
-            self.draw()
+        self.draw()
         i = 0
         for ped in self.pedestrians.copy():
             i += 1
             ped.update(dt=1)
-            # does pedestrian need to start waiting?
-            if self.wait_mode == "att":
+            if self.wait_mode == "queue":
+                # is the pedestrian going towards initiator?
+                if ped.dest == self.queue_initiator_rect.center:
+                    # did the pedestrian collide with it?
+                    if self.queue_initiator_rect.collidepoint(ped.pos):
+                        ped.follow_vectors = True
+                        ped.dest = self.attractor_rects.pop(0).center
+                # did the pedestrian get to the front of the queue?
+                pass
+            # does pedestrian need to start waiting at the area attractor?
+            elif self.wait_mode == "att":
                 if (ped.dest - ped.pos).length() <= 1.8 or ped.area.rect.collidepoint(ped.pos):
                     if self.kill:
                         self.pedestrians.remove(ped)
                         all_pedestrians.remove(ped)
                     else:
                         ped.start_waiting()
-                        if self.code is not None:
-                            # exec(self.code)
-                            pass
             elif self.wait_mode == "pv":
                 if self.rect.collidepoint(ped.pos):
-                    ped.start_pv()
-            # does pedestrian need to go to next place?
+                    if self.kill:
+                        self.pedestrians.remove(ped)
+                        all_pedestrians.remove(ped)
+                    else:
+                        ped.start_pv()
+            # did pedestrian wait long enough?
             if self.children and ped.waiting:
-                if ped.wait is None:
-                    raise RuntimeError(f"{self.name} object hasn't been given a `wait` attribute, but has children")
-
                 if ticks() - ped.last_wait >= ped.wait:
                     self.release_ped(ped)
                     pool[self.get_child()].new_ped(ped)
+                    
 # colors
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
@@ -871,9 +960,12 @@ g = None
 pool = {}
 g = Global("global", 120, 810, 810)
 vector_image = pygame.transform.flip(pygame.transform.scale(pygame.image.load(Path("res", "arrow.png")), (g.grid * 0.5, g.grid * 0.5)), False, False)
+palette_image = pygame.image.load(Path("res", "palette.png"))
+palette = [palette_image.get_at((x, 0)) for x in range(palette_image.width)][1:]
 
 
-load_model(Path("src", "save.toml"))
+model_path = Path("src", "old_schiphol.toml")
+load_model(model_path)
 
 grid_surf = pygame.Surface((g.width, g.height))
 grid_surf.fill(LIGHT_GRAY)
@@ -888,6 +980,6 @@ pygame.display.set_caption("Social Force Model")
 WIN = pygame.display.set_mode((g.width, g.height), pygame.RESIZABLE)
 clock = pygame.time.Clock()
 font = pygame.font.SysFont("Courier", 20)
-heatmap = np.zeros((g.height, g.width))
+heatmap = np.zeros((g.height // g.grid, g.width // g.grid))
 
 g.main()
