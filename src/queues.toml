@@ -2,7 +2,7 @@
 width = 810
 height = 810
 target_fps = 120
-draw = false
+draw = true
 
 [agent]
 
@@ -82,6 +82,11 @@ kill = false
 children = []
 chances = [1]
 overflow = false
+
+[polygon8]
+points = [[390.0, 270.0], [390.0, 450.0]]
+connect = false
+invisible = false
 
 # VECTOR FIELDS
 
