@@ -1,0 +1,379 @@
+[global]
+width = 810
+height = 810
+target_fps = 120
+draw = false
+
+[agent]
+
+[areaCounter]
+area = [210, 210, 360, 30]
+dimensions = [10, 1]
+wait_mode = "att"
+wait = "GAUSS(3, 2)"
+kill = false
+children = ['areaWait']
+chances = [1]
+overflow = false
+
+[polygon0]
+points = [[210.0, 270.0], [210.0, 450.0], [540.0, 450.0]]
+connect = false
+invisible = false
+
+[polygon1]
+points = [[570.0, 450.0], [570.0, 270.0]]
+connect = false
+invisible = false
+
+[polygon2]
+points = [[570.0, 420.0], [240.0, 420.0]]
+connect = false
+invisible = false
+
+[polygon3]
+points = [[210.0, 390.0], [540.0, 390.0]]
+connect = false
+invisible = false
+
+[polygon4]
+points = [[570.0, 360.0], [240.0, 360.0]]
+connect = false
+invisible = false
+
+[polygon5]
+points = [[210.0, 330.0], [540.0, 330.0]]
+connect = false
+invisible = false
+
+[polygon6]
+points = [[570.0, 300.0], [240.0, 300.0]]
+connect = false
+invisible = false
+
+[polygon7]
+points = [[210.0, 270.0], [540.0, 270.0]]
+connect = false
+invisible = false
+
+[areaQueue]
+area = [210, 270, 360, 180]
+dimensions = [5, 5]
+wait_mode = "queue"
+kill = false
+children = ['areaCounter']
+chances = [1]
+queue_positions = [[18, 8], [18, 9], [17, 9], [16, 9], [15, 9], [14, 9], [13, 9], [12, 9], [11, 9], [10, 9], [9, 9], [8, 9], [7, 9], [7, 10], [8, 10], [9, 10], [10, 10], [11, 10], [12, 10], [13, 10], [14, 10], [15, 10], [16, 10], [17, 10], [18, 10], [18, 11], [17, 11], [16, 11], [15, 11], [14, 11], [13, 11], [12, 11], [11, 11], [10, 11], [9, 11], [8, 11], [7, 11], [7, 12], [8, 12], [9, 12], [10, 12], [11, 12], [12, 12], [13, 12], [14, 12], [15, 12], [16, 12], [17, 12], [18, 12], [18, 13], [17, 13], [16, 13], [15, 13], [14, 13], [13, 13], [12, 13], [11, 13], [10, 13], [9, 13], [8, 13], [7, 13], [7, 14], [8, 14], [9, 14], [10, 14], [11, 14], [12, 14], [13, 14], [14, 14], [15, 14], [16, 14], [17, 14], [18, 14]]
+queue_initiator = -1
+overflow = false
+
+[spawnerMain]
+line = [[530.0, 720.0], [570.0, 720.0]]
+wait = 0.3
+limit = 50
+children = ['areaQueue']
+chances = [1]
+
+[areaWait]
+area = [210, 30, 360, 120]
+dimensions = [5, 5]
+wait_mode = "pv"
+kill = false
+children = []
+chances = [1]
+overflow = false
+
+# VECTOR FIELDS
+
+[vector0]
+pos = [18, 9]
+angle = 1.6057029118347832
+
+[vector1]
+pos = [17, 9]
+angle = 0.0
+
+[vector2]
+pos = [16, 9]
+angle = 0.0
+
+[vector3]
+pos = [15, 9]
+angle = 0.0
+
+[vector4]
+pos = [14, 9]
+angle = 0.0
+
+[vector5]
+pos = [13, 9]
+angle = 0.0
+
+[vector6]
+pos = [12, 9]
+angle = 0.0
+
+[vector7]
+pos = [11, 9]
+angle = 0.0
+
+[vector8]
+pos = [10, 9]
+angle = 0.0
+
+[vector9]
+pos = [9, 9]
+angle = 0.0
+
+[vector10]
+pos = [8, 9]
+angle = 0.0
+
+[vector11]
+pos = [7, 9]
+angle = 0.0
+
+[vector12]
+pos = [7, 10]
+angle = 1.6057029118347832
+
+[vector13]
+pos = [8, 10]
+angle = 3.141592653589793
+
+[vector14]
+pos = [9, 10]
+angle = 3.141592653589793
+
+[vector15]
+pos = [10, 10]
+angle = 3.141592653589793
+
+[vector16]
+pos = [11, 10]
+angle = 3.141592653589793
+
+[vector17]
+pos = [12, 10]
+angle = 3.141592653589793
+
+[vector18]
+pos = [13, 10]
+angle = 3.141592653589793
+
+[vector19]
+pos = [14, 10]
+angle = 3.141592653589793
+
+[vector20]
+pos = [15, 10]
+angle = 3.141592653589793
+
+[vector21]
+pos = [16, 10]
+angle = 3.141592653589793
+
+[vector22]
+pos = [17, 10]
+angle = 3.141592653589793
+
+[vector23]
+pos = [18, 10]
+angle = 3.141592653589793
+
+[vector24]
+pos = [18, 11]
+angle = 1.6057029118347832
+
+[vector25]
+pos = [17, 11]
+angle = 0.0
+
+[vector26]
+pos = [16, 11]
+angle = 0.0
+
+[vector27]
+pos = [15, 11]
+angle = 0.0
+
+[vector28]
+pos = [14, 11]
+angle = 0.0
+
+[vector29]
+pos = [13, 11]
+angle = 0.0
+
+[vector30]
+pos = [12, 11]
+angle = 0.0
+
+[vector31]
+pos = [11, 11]
+angle = 0.0
+
+[vector32]
+pos = [10, 11]
+angle = 0.0
+
+[vector33]
+pos = [9, 11]
+angle = 0.0
+
+[vector34]
+pos = [8, 11]
+angle = 0.0
+
+[vector35]
+pos = [7, 11]
+angle = 0.0
+
+[vector36]
+pos = [7, 12]
+angle = 1.6057029118347832
+
+[vector37]
+pos = [8, 12]
+angle = 3.141592653589793
+
+[vector38]
+pos = [9, 12]
+angle = 3.141592653589793
+
+[vector39]
+pos = [10, 12]
+angle = 3.141592653589793
+
+[vector40]
+pos = [11, 12]
+angle = 3.141592653589793
+
+[vector41]
+pos = [12, 12]
+angle = 3.141592653589793
+
+[vector42]
+pos = [13, 12]
+angle = 3.141592653589793
+
+[vector43]
+pos = [14, 12]
+angle = 3.141592653589793
+
+[vector44]
+pos = [15, 12]
+angle = 3.141592653589793
+
+[vector45]
+pos = [16, 12]
+angle = 3.141592653589793
+
+[vector46]
+pos = [17, 12]
+angle = 3.141592653589793
+
+[vector47]
+pos = [18, 12]
+angle = 3.141592653589793
+
+[vector48]
+pos = [18, 13]
+angle = 1.6057029118347832
+
+[vector49]
+pos = [17, 13]
+angle = 0.0
+
+[vector50]
+pos = [16, 13]
+angle = 0.0
+
+[vector51]
+pos = [15, 13]
+angle = 0.0
+
+[vector52]
+pos = [14, 13]
+angle = 0.0
+
+[vector53]
+pos = [13, 13]
+angle = 0.0
+
+[vector54]
+pos = [12, 13]
+angle = 0.0
+
+[vector55]
+pos = [11, 13]
+angle = 0.0
+
+[vector56]
+pos = [10, 13]
+angle = 0.0
+
+[vector57]
+pos = [9, 13]
+angle = 0.0
+
+[vector58]
+pos = [8, 13]
+angle = 0.0
+
+[vector59]
+pos = [7, 13]
+angle = 0.0
+
+[vector60]
+pos = [7, 14]
+angle = 1.6057029118347832
+
+[vector61]
+pos = [8, 14]
+angle = 3.141592653589793
+
+[vector62]
+pos = [9, 14]
+angle = 3.141592653589793
+
+[vector63]
+pos = [10, 14]
+angle = 3.141592653589793
+
+[vector64]
+pos = [11, 14]
+angle = 3.141592653589793
+
+[vector65]
+pos = [12, 14]
+angle = 3.141592653589793
+
+[vector66]
+pos = [13, 14]
+angle = 3.141592653589793
+
+[vector67]
+pos = [14, 14]
+angle = 3.141592653589793
+
+[vector68]
+pos = [15, 14]
+angle = 3.141592653589793
+
+[vector69]
+pos = [16, 14]
+angle = 3.141592653589793
+
+[vector70]
+pos = [17, 14]
+angle = 3.141592653589793
+
+[vector71]
+pos = [18, 14]
+angle = 3.141592653589793
+
+[vector72]
+pos = [18, 8]
+angle = -4.6774823953448035
+

@@ -4,50 +4,107 @@ height = 810
 target_fps = 144
 draw = false
 
+[agent]
+
 [polygon0]
 points = [[330.0, 600.0], [330.0, 720.0], [0.0, 720.0]]
 connect = false
 invisible = false
 
-[polygon1]
-points = [[450.0, 600.0], [450.0, 720.0], [810.0, 720.0]]
-connect = false
-invisible = false
-
 [spawnerMain]
-line = [[360.0, 780.0], [420.0, 780.0]]
-wait = 500
-limit = 30
-children = ['areaQueueTicket', 'areaKiosk']
-chances = [0.9, 0.1]
+line = [[500.0, 780.0], [560.0, 780.0]]
+wait = 0.5
+limit = 50
+children = ['areaQueueCounter', 'areaKiosk', 'areaKiosk1']
+chances = []
+chance_code = "$check_method$ == 'counter': areaQueueCounter; $check_method$ == 'kiosk': choice(('areaKiosk', 'areaKiosk1')); $luggage$ & $check_method$ == 'online': areaKiosk; !$luggage$ & $check_method$ == 'online': areaQueueSecurity"
 
-[areaQueueTicket]
+[areaQueueCounter]
 area = [0, 0, 1, 1]
 dimensions = [1, 1]
 wait_mode = "queue"
 kill = false
-children = ['areaTicket']
+children = ['areaCounter']
 chances = [1]
 queue_positions = [[5, 15], [6, 15], [6, 14], [6, 13], [6, 12], [6, 11], [6, 10], [7, 10], [7, 11], [7, 12], [7, 13], [7, 14], [7, 15], [7, 16], [7, 17], [7, 18], [7, 19], [8, 19], [8, 18], [8, 17], [8, 16], [8, 15], [8, 14], [8, 13], [8, 12], [8, 11], [8, 10], [9, 10], [9, 11], [9, 12], [9, 13], [9, 14], [9, 15], [9, 16], [9, 17], [9, 18], [9, 18], [9, 19], [10, 19], [10, 18], [10, 17], [10, 16], [10, 15], [11, 15]]
 queue_initiator = 43
+overflow = false
 
-[areaTicket]
+[areaCounter]
 area = [30, 270, 30, 330]
 dimensions = [1, 6]
 wait_mode = "att"
-wait = "UNIFORM(1000, 3000)"
+wait = "GAUSS(10.5, 6.99)"
 kill = false
-children = ['areaQueueSecurity']
+children = ['areaQueueSecurity', 'areaShop1']
+children_code = "<u> < 0.2: areaShop1; <u> > 0.2: areaQueueSecurity"
 chances = [1]
+overflow = false
 
 [areaKiosk]
-area = [450, 300, 150, 30]
+area = [450, 460, 400, 30]
 dimensions = [5, 1]
 wait_mode = "att"
-wait = 3000
+wait = "GAUSS(5.64, 0.96)"
+kill = false
+children = ['areaLuggage', 'areaSecurity']
+children_code = "$luggage$: areaLuggage; !$luggage$: areaQueueSecurity"
+chances = [1]
+overflow = false
+
+[areaKiosk1]
+area = [0, 0, 10, 10]
+dimensions = [1, 1]
+wait_mode = "att"
+wait = "GAUSS(5.64, 0.96)"
+kill = false
+children = ['areaLuggage', 'areaSecurity']
+children_code = "$luggage$: areaLuggage; !$luggage$: areaQueueSecurity"
+chances = [1]
+overflow = false
+
+[areaKiosk2]
+area = [0, 0, 10, 10]
+dimensions = [1, 1]
+wait_mode = "att"
+wait = "GAUSS(5.64, 0.96)"
+kill = false
+children = ['areaLuggage', 'areaSecurity']
+children_code = "$luggage$: areaLuggage; !$luggage$: areaQueueSecurity"
+chances = [1]
+overflow = false
+
+[areaKiosk3]
+area = [0, 0, 10, 10]
+dimensions = [1, 1]
+wait_mode = "att"
+wait = "GAUSS(5.64, 0.96)"
+kill = false
+children = ['areaLuggage', 'areaSecurity']
+children_code = "$luggage$: areaLuggage; !$luggage$: areaQueueSecurity"
+chances = [1]
+overflow = false
+
+[areaKiosk5]
+area = [0, 0, 10, 10]
+dimensions = [1, 1]
+wait_mode = "att"
+wait = "GAUSS(5.64, 0.96)"
+kill = false
+children = ['areaLuggage', 'areaSecurity']
+children_code = "$luggage$: areaLuggage; !$luggage$: areaQueueSecurity"
+chances = [1]
+overflow = false
+
+[areaLuggage]
+area = [480, 300, 330, 30]
+dimensions = [8, 1]
+wait_mode = "att"
+wait = 5
 kill = false
 children = ['areaQueueSecurity']
 chances = [1]
+overflow = false
 
 [areaQueueSecurity]
 area = [0, 0, 1, 1]
@@ -56,25 +113,58 @@ wait_mode = "queue"
 kill = false
 children = ['areaSecurity']
 chances = [1]
-queue_positions = [[14, 3], [15, 3], [16, 3], [17, 3], [17, 4], [16, 4], [15, 4], [14, 4], [13, 4], [12, 4], [11, 4], [10, 4], [9, 4], [8, 4], [7, 4], [6, 4], [6, 5], [7, 5], [8, 5], [9, 5], [10, 5], [11, 5], [12, 5], [13, 5], [14, 5], [15, 5], [16, 5], [17, 5], [17, 6], [16, 6], [15, 6], [14, 6], [13, 6], [12, 6], [11, 6], [10, 6], [9, 6], [8, 6], [7, 6], [6, 6], [6, 7]]
-queue_initiator = 40
+queue_positions = [[14, 3], [15, 3], [16, 3], [17, 3], [17, 4], [16, 4], [15, 4], [14, 4], [13, 4], [12, 4], [11, 4], [10, 4], [9, 4], [8, 4], [7, 4], [6, 4], [6, 5], [7, 5], [8, 5], [9, 5], [10, 5], [11, 5], [12, 5], [13, 5], [14, 5], [15, 5], [16, 5], [17, 5], [17, 6], [16, 6], [15, 6], [14, 6], [13, 6], [12, 6], [11, 6], [10, 6], [9, 6], [8, 6], [7, 6], [6, 6], [6, 7], [7, 7], [8, 7], [9, 7], [10, 7], [11, 7]]
+queue_initiator = 45
+overflow = false
 
 [areaSecurity]
 area = [240, 30, 240, 30]
 dimensions = [3, 1]
 wait_mode = "att"
-wait = "UNIFORM(1000, 6000)"
+wait = "UNIFORM(6, 9)"
 kill = false
-children = ['areaWait']
+children = ['areaQueuePassport']
 chances = [1]
+overflow = false
 
-[areaWait]
-area = [700, 0, 200, 150]
+[areaQueuePassport]
+area = [960, 30, 420, 150]
 dimensions = [1, 1]
+wait_mode = "queue"
+kill = false
+children = ['areaShop1']
+chances = [1]
+queue_positions = [[45, 6], [45, 5], [44, 5], [43, 5], [42, 5], [41, 5], [40, 5], [39, 5], [38, 5], [37, 5], [36, 5], [35, 5], [34, 5], [33, 5], [32, 5], [32, 4], [33, 4], [34, 4], [35, 4], [36, 4], [37, 4], [38, 4], [39, 4], [40, 4], [41, 4], [42, 4], [43, 4], [44, 4], [44, 3], [43, 3], [42, 3], [41, 3], [40, 3], [39, 3], [38, 3], [37, 3], [36, 3], [35, 3], [34, 3], [33, 3], [32, 3], [32, 2], [32, 1]]
+queue_initiator = 42
+overflow = false
+
+[areaShop1]
+area = [660, 60, 210, 150]
+dimensions = [5, 5]
 wait_mode = "pv"
+wait = 5000
 kill = false
 children = []
 chances = [1]
+overflow = false
+
+[areaShop2]
+area = [870, 600, 270, 150]
+dimensions = [5, 5]
+wait_mode = "pv"
+kill = true
+children = []
+chances = [1]
+overflow = false
+
+[areaCafe]
+area = [30, 30, 120, 120]
+dimensions = [5, 5]
+wait_mode = "pv"
+kill = true
+children = []
+chances = [1]
+overflow = false
 
 [polygon2]
 points = [[330.0, 600.0], [180.0, 600.0], [180.0, 480.0]]
@@ -158,6 +248,36 @@ invisible = false
 
 [polygon19]
 points = [[420.0, 90.0], [420.0, 120.0]]
+connect = false
+invisible = false
+
+[polygon1]
+points = [[960.0, 60.0], [960.0, 180.0], [1350.0, 180.0]]
+connect = false
+invisible = false
+
+[polygon17]
+points = [[1350.0, 60.0], [1350.0, 150.0], [990.0, 150.0]]
+connect = false
+invisible = false
+
+[polygon20]
+points = [[960.0, 120.0], [1320.0, 120.0]]
+connect = false
+invisible = false
+
+[polygon21]
+points = [[1350.0, 90.0], [990.0, 90.0]]
+connect = false
+invisible = false
+
+[polygon22]
+points = [[990.0, 90.0], [990.0, 60.0], [1350.0, 60.0]]
+connect = false
+invisible = false
+
+[polygon23]
+points = [[180.0, 210.0], [180.0, 240.0], [330.0, 240.0]]
 connect = false
 invisible = false
 
@@ -498,4 +618,212 @@ angle = 0.0
 [vector83]
 pos = [6, 7]
 angle = 1.53588974175501
+
+[vector84]
+pos = [18, 6]
+angle = -1.53588974175501
+
+[vector85]
+pos = [18, 5]
+angle = -7.88888821901437
+
+[vector86]
+pos = [10, 24]
+angle = 0.06981317007977318
+
+[vector87]
+pos = [9, 24]
+angle = 0.06981317007977318
+
+[vector88]
+pos = [45, 5]
+angle = -1.6057029118347832
+
+[vector89]
+pos = [44, 5]
+angle = 0.0
+
+[vector90]
+pos = [43, 5]
+angle = 0.0
+
+[vector91]
+pos = [42, 5]
+angle = 0.0
+
+[vector92]
+pos = [41, 5]
+angle = 0.0
+
+[vector93]
+pos = [40, 5]
+angle = 0.0
+
+[vector94]
+pos = [39, 5]
+angle = 0.0
+
+[vector95]
+pos = [38, 5]
+angle = 0.0
+
+[vector96]
+pos = [37, 5]
+angle = 0.0
+
+[vector97]
+pos = [36, 5]
+angle = 0.0
+
+[vector98]
+pos = [35, 5]
+angle = 0.0
+
+[vector99]
+pos = [34, 5]
+angle = 0.0
+
+[vector100]
+pos = [33, 5]
+angle = 0.0
+
+[vector101]
+pos = [32, 5]
+angle = 0.0
+
+[vector102]
+pos = [32, 4]
+angle = -1.6057029118347832
+
+[vector103]
+pos = [33, 4]
+angle = -3.141592653589793
+
+[vector104]
+pos = [34, 4]
+angle = -3.141592653589793
+
+[vector105]
+pos = [35, 4]
+angle = -3.141592653589793
+
+[vector106]
+pos = [36, 4]
+angle = -3.141592653589793
+
+[vector107]
+pos = [37, 4]
+angle = -3.141592653589793
+
+[vector108]
+pos = [38, 4]
+angle = -3.141592653589793
+
+[vector109]
+pos = [39, 4]
+angle = -3.141592653589793
+
+[vector110]
+pos = [40, 4]
+angle = -3.141592653589793
+
+[vector111]
+pos = [41, 4]
+angle = -3.141592653589793
+
+[vector112]
+pos = [42, 4]
+angle = -3.141592653589793
+
+[vector113]
+pos = [43, 4]
+angle = -3.141592653589793
+
+[vector114]
+pos = [44, 4]
+angle = -3.141592653589793
+
+[vector115]
+pos = [44, 3]
+angle = -1.53588974175501
+
+[vector116]
+pos = [43, 3]
+angle = -6.283185307179586
+
+[vector117]
+pos = [42, 3]
+angle = -6.283185307179586
+
+[vector118]
+pos = [41, 3]
+angle = -6.283185307179586
+
+[vector119]
+pos = [40, 3]
+angle = -6.283185307179586
+
+[vector120]
+pos = [39, 3]
+angle = -6.283185307179586
+
+[vector121]
+pos = [38, 3]
+angle = -6.283185307179586
+
+[vector122]
+pos = [37, 3]
+angle = -6.283185307179586
+
+[vector123]
+pos = [36, 3]
+angle = -6.283185307179586
+
+[vector124]
+pos = [35, 3]
+angle = -6.283185307179586
+
+[vector125]
+pos = [34, 3]
+angle = -6.283185307179586
+
+[vector126]
+pos = [33, 3]
+angle = -6.283185307179586
+
+[vector127]
+pos = [32, 3]
+angle = -6.283185307179586
+
+[vector128]
+pos = [32, 2]
+angle = -7.88888821901437
+
+[vector129]
+pos = [32, 1]
+angle = -7.88888821901437
+
+[vector130]
+pos = [45, 6]
+angle = -1.6057029118347832
+
+[vector131]
+pos = [7, 7]
+angle = -3.141592653589793
+
+[vector132]
+pos = [8, 7]
+angle = -3.141592653589793
+
+[vector133]
+pos = [9, 7]
+angle = -3.141592653589793
+
+[vector134]
+pos = [10, 7]
+angle = -3.141592653589793
+
+[vector135]
+pos = [11, 7]
+angle = -3.141592653589793
 
