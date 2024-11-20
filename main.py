@@ -140,7 +140,7 @@ def save_heatmap():
         for x in range(heatmap_surf.width):
             color = lerp_heatmap(heatmap[y, x])
             heatmap_surf.set_at((x, y), color)
-    pygame.image.save(heatmap_surf, Path("res", "heatmap.png"))
+    pygame.image.saave(heatmap_surf, Path("res", "heatmap.png"))
 
 
 def lerp_heatmap(i):
@@ -280,7 +280,8 @@ class Global:
                                 peds[i].dest = peds[i - 1].dest
                     
                 elif event.type == pygame.MOUSEWHEEL:
-                    editor.vec_angle += event.y * 4
+                    # editor.vec_angle += event.y * 4
+                    editor.vec_angle += 45 * event.y * -1
                     g.i += event.y
                     g.i = max(0, g.i)
                 
@@ -338,7 +339,7 @@ class Global:
             # flip the display
             pygame.display.flip()
 
-        save(model_path)
+        # save(model_path)
 
 
 class EditorModes(Enum):
@@ -501,6 +502,9 @@ class Node:
         return name
 
     def get_child(self):
+        if self.children[0].startswith("areaQueue"):
+            lengths = [len(pool[child].pedestrians) for child in self.children]
+            return self.children[lengths.index(min(lengths))]
         try:
             return random.choices(self.children, self.chances, k=1)[0]
         except ValueError:
@@ -755,7 +759,7 @@ class Pedestrian:
         ])
         surf = font.render(w, True, (0, 0, 0))
         rect = surf.get_rect(topleft=self.pos)
-        WIN.blit(surf, rect)
+        # WIN.blit(surf, rect)
     
 
 class Gate:
@@ -1024,12 +1028,16 @@ class Area(Node):
                     else:
                         ped.start_waiting()
             elif self.wait_mode == "pv":
-                if self.rect.collidepoint(ped.pos):
-                    if self.kill:
-                        self.pedestrians.remove(ped)
-                        all_pedestrians.remove(ped)
-                    else:
-                        ped.start_pv()
+                if self.kill:
+                    self.pedestrians.remove(ped)
+                    all_pedestrians.remove(ped)
+                else:
+                    if self.rect.collidepoint(ped.pos):
+                        if self.kill:
+                            self.pedestrians.remove(ped)
+                            all_pedestrians.remove(ped)
+                        else:
+                            ped.start_pv()
             # did pedestrian wait long enough?
             if self.children and ped.waiting:
                 if ticks() - ped.last_wait >= ped.wait * 1000:

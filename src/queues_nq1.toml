@@ -7,10 +7,10 @@ draw = false
 [agent]
 
 [areaCounter]
-area = [210, 210, 360, 30]
+area = [210, 180, 360, 30]
 dimensions = [10, 1]
 wait_mode = "att"
-wait = "GAUSS(3, 2)"
+wait = "gauss(8, 6)"
 kill = false
 children = ['areaWait']
 chances = [1]
@@ -70,7 +70,7 @@ overflow = false
 [spawnerMain]
 line = [[530.0, 720.0], [570.0, 720.0]]
 wait = 0.3
-limit = 50
+limit = 100
 children = ['areaQueue']
 chances = [1]
 

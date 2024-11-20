@@ -14,7 +14,7 @@ invisible = false
 [spawnerMain]
 line = [[500.0, 780.0], [560.0, 780.0]]
 wait = 0.5
-limit = 50
+limit = 100
 children = ['areaQueueCounter', 'areaKiosk', 'areaKiosk1']
 chances = []
 chance_code = "$check_method$ == 'counter': areaQueueCounter; $check_method$ == 'kiosk': choice(('areaKiosk', 'areaKiosk1')); $luggage$ & $check_method$ == 'online': areaKiosk; !$luggage$ & $check_method$ == 'online': areaQueueSecurity"
