@@ -1,6 +1,6 @@
 [global]
-width = 810
-height = 810
+width = 2160
+height = 800
 target_fps = 120
 draw = false
 
@@ -10,7 +10,7 @@ draw = false
 area = [210, 180, 180, 30]
 dimensions = [5, 1]
 wait_mode = "att"
-wait = "gauss(8, 6)"
+wait = "UNIFORM(60, 90)"
 kill = false
 children = ['areaWait']
 chances = [1]
@@ -20,7 +20,7 @@ overflow = false
 area = [390, 180, 180, 30]
 dimensions = [5, 1]
 wait_mode = "att"
-wait = "gauss(8, 6)"
+wait = "UNIFORM(60, 90)"
 kill = false
 children = ['areaWait']
 chances = [1]
@@ -28,8 +28,8 @@ overflow = false
 
 [spawnerMain]
 line = [[370.0, 720.0], [430.0, 720.0]]
-wait = 0.3
-limit = 100
+wait = 1
+limit = 50
 children = ['areaQueueRight', 'areaQueueLeft']
 chances = [0.5, 0.5]
 

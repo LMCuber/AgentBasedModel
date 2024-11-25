@@ -10,7 +10,7 @@ draw = false
 area = [210, 180, 360, 30]
 dimensions = [10, 1]
 wait_mode = "att"
-wait = "gauss(8, 6)"
+wait = "uniform(60, 90)"
 kill = false
 children = ['areaWait']
 chances = [1]
@@ -69,8 +69,8 @@ overflow = false
 
 [spawnerMain]
 line = [[530.0, 720.0], [570.0, 720.0]]
-wait = 0.3
-limit = 100
+wait = 11.8
+limit = 50
 children = ['areaQueue']
 chances = [1]
 

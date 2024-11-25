@@ -5,7 +5,7 @@ import cProfile
 import random
 from random import choice
 from dataclasses import dataclass
-from math import e, cos, sin, log10, floor, exp, pi, degrees, radians
+from math import e, cos, sin, log10, floor, exp, pi, degrees, radians, sqrt
 from math import log as ln
 from enum import Enum
 from pygame.time import get_ticks as ticks
@@ -18,6 +18,8 @@ from contextlib import suppress
 from itertools import product
 import matplotlib.pyplot as plt
 from time import perf_counter
+from threading import Thread
+import time
 
 
 # functions
@@ -241,7 +243,8 @@ class Global:
         self.last = ticks()
         self.running = False
         self.last_start = ticks()
-        self.i = 200
+        self.def_i = 120
+        self.i = 120
     
     def get_toml(self):
         ret = f"[global]\n"
@@ -339,7 +342,7 @@ class Global:
             # flip the display
             pygame.display.flip()
 
-        # save(model_path)
+        save(model_path)
 
 
 class EditorModes(Enum):
@@ -627,7 +630,7 @@ class Pedestrian:
         self.waiting_color = self.def_color
         # driving term
         self.v0 = clamp(random.gauss(walk.mu, walk.sigma), walk.min, walk.max)
-        self.v0 = 1.8
+        self.v0 = 1.4*2
         self.pving = False
         self.vel = Vec2(0, 0)
         self.acc = Vec2(0, 0)
@@ -645,6 +648,7 @@ class Pedestrian:
         # interactive term (with other pedestrians)
         self.A_ped = 0.08
         self.B_ped = 4
+        self.cols = False
     
     @classmethod
     def get_toml(cls):
@@ -680,19 +684,25 @@ class Pedestrian:
             dest_rect = pygame.Rect((self.dest[0] - g.grid / 2, self.dest[1] - g.grid / 2, g.grid, g.grid))
             pygame.draw.rect(WIN, self.color, dest_rect)
             # check if it has to follow ground arrows (vector field)
-            if self.follow_vectors and grid_pos in vector_field:
-                vector = vector_field[grid_pos]
-                angle = vector.angle
-                self.e = Vec2(cos(angle), -sin(angle))
+            # if self.follow_vectors and grid_pos in vector_field:
+            for grid_pos in vector_field.keys():
+                if self.follow_vectors:
+                    if self.vel.length() <= 0.3:
+                        self.cols = True
+                    else:
+                        self.cols = False
+                    if pygame.Rect(grid_pos[0] * g.grid, grid_pos[1] * g.grid, g.grid, g.grid).collidepoint(self.pos):
+                        vector = vector_field[grid_pos]
+                        angle = vector.angle
+                        self.e = Vec2(cos(angle), -sin(angle))
+                        pygame.draw.rect(WIN, (120, 0, 0), (grid_pos[0] * g.grid, grid_pos[1] * g.grid, g.grid, g.grid), 1)
+                        break
             else:
                 self.e = (self.dest - self.pos) / (self.dest - self.pos).length()
-            # check if colliding with dest
-            if dest_rect.collidepoint(self.pos):
-                # check if there are empty venues
-                pass
         else:
             self.e = (self.dest - self.pos) / (self.dest - self.pos).length()
             self.color = self.def_color
+            self.cols = True
        
         desired_vel = (0 if self.pving else self.v0) * self.e
         delta_vel = desired_vel - self.vel
@@ -709,6 +719,8 @@ class Pedestrian:
     
     def calculate_interactive_force(self):
         total_f = Vec2(0, 0)
+        if not self.cols:
+            return total_f
         for ped in all_pedestrians:
             if ped is not self:
                 if (ped.pos - self.pos).length() >= 30:
@@ -724,7 +736,7 @@ class Pedestrian:
                 total_f += f
         return total_f
     
-    def update(self, dt):
+    def update(self):
         # update
         if Pedestrian.move:
             self.dacc = self.calculate_drive_force()
@@ -733,7 +745,7 @@ class Pedestrian:
             # newton
             self.acc = self.dacc + self.oacc + self.iacc
             self.vel += self.acc
-            self.pos += self.vel * dt
+            self.pos += self.vel
         # draw
         pedestrians_to_draw.append(self)
         # update heatmap
@@ -866,6 +878,19 @@ class Revolver(AbstractObstacle):
             yield dist_point_to_line_segment(self.p1, p2, other.pos)
 
 
+def shift(area, balie):
+    peds_to_move = [p for p in sorted(area.pedestrians, key=lambda i: area.attractors.index(i.dest)) if p.passed_initiator]
+    for i in range(len(peds_to_move) - 1, -1, -1):
+        ped = peds_to_move[i]
+        if i == 0:
+            # the first one in line, so go go go !
+            area.release_ped(ped)
+            balie.new_ped(ped)
+        else:
+            ped.dest = peds_to_move[i - 1].dest
+    area.available_attractor_index -= 1
+
+
 class Area(Node):
     def __init__(self, name, area, dimensions, wait_mode="pv", wait=None, kill=False, children=None, children_code=None, chances=None, queue=False, queue_positions=None, queue_initiator=None, overflow=False):
         self.toml_attrs = ("area", "dimensions", "wait_mode", "wait", "kill", "children", "children_code", "chances", "queue_positions","queue_initiator", "overflow")
@@ -984,7 +1009,7 @@ class Area(Node):
         i = 0
         for ped in self.pedestrians.copy():
             i += 1
-            ped.update(dt=1)
+            ped.update()
             if self.wait_mode == "queue":
                 # is the pedestrian going towards initiator?
                 if ped.dest == self.queue_initiator_rect.center:
@@ -1005,16 +1030,7 @@ class Area(Node):
                         if balie.get_num_available_attractors() > 0:
                             # there is empty place, shift all pedestrians forward!
                             # but first, sort them by depth in the queue!
-                            peds_to_move = [p for p in sorted(self.pedestrians, key=lambda i: self.attractors.index(i.dest)) if p.passed_initiator]
-                            for i in range(len(peds_to_move) - 1, -1, -1):
-                                ped = peds_to_move[i]
-                                if i == 0:
-                                    # the first one in line, so go go go !
-                                    self.release_ped(ped)
-                                    balie.new_ped(ped)
-                                else:
-                                    ped.dest = peds_to_move[i - 1].dest
-                            self.available_attractor_index -= 1
+                            Thread(target=shift, args=(self, balie)).start()
                         else:
                             # welp, there is no place, you have to wait (if not waiting already)
                             if ped.follow_vectors:
@@ -1040,7 +1056,7 @@ class Area(Node):
                             ped.start_pv()
             # did pedestrian wait long enough?
             if self.children and ped.waiting:
-                if ticks() - ped.last_wait >= ped.wait * 1000:
+                if ticks() - ped.last_wait >= ped.wait * (g.i / g.def_i) * 1000:
                     child = pool[self.get_child(ped)]
                     if child.get_num_available_attractors() > 0:
                         self.release_ped(ped)
@@ -1068,7 +1084,33 @@ palette_image = pygame.image.load(Path("res", "palette.png"))
 palette = [palette_image.get_at((x, 0)) for x in range(palette_image.width)][1:]
 
 
-model_path = Path("src", "queues.toml")
+# h = sqrt(3) / 2
+
+# r = 17
+# c = 2
+# ox, oy = 30, 14
+# for xo in range(r):
+#     if xo % 2 == 0:
+#         # normal
+#         vector_field[(ox + xo / 2, oy)] = FieldVector(pi / 4)
+#     else:
+#         # level up
+#         vector_field[(ox + xo / 2, oy - h)] = FieldVector(-pi / 4)
+# vector_field[(ox + (xo + 1) / 2, oy - h)] = FieldVector(3 / 4 * pi)
+# vector_field[(ox + xo / 2, oy - 2 * h)] = FieldVector(3 / 4 * pi)
+# for xo in range(1, r):
+#     if xo % 2 == 0:
+#         # normal
+#         vector_field[(ox + r / 2 - (xo + 1) / 2, oy - 2 * h)] = FieldVector(3 / 4 * pi)
+#     else:
+#         # level up
+#         vector_field[(ox + r / 2 - (xo + 1) / 2, oy - 3 * h)] = FieldVector(5 / 4 * pi)
+
+# pprint(list(reversed([list(p) for p in vector_field.keys()])))
+
+
+
+model_path = Path("src", "zigzag.toml")
 load_model(model_path)
 
 grid_surf = pygame.Surface((g.width, g.height))
