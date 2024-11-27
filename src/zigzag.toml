@@ -7,7 +7,7 @@ draw = false
 [agent]
 
 [spawnerMain]
-line = [[1020.0, 660.0], [1080.0, 660.0]]
+line = [[1020.0, 690.0], [1080.0, 690.0]]
 wait = 0.6
 limit = 100
 children = ['areaQueue']
