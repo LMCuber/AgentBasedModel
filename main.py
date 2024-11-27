@@ -1110,7 +1110,7 @@ palette = [palette_image.get_at((x, 0)) for x in range(palette_image.width)][1:]
 
 
 
-model_path = Path("src", "zigzag.toml")
+model_path = Path("src", "nonzigzag.toml")
 load_model(model_path)
 
 grid_surf = pygame.Surface((g.width, g.height))
