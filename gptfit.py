@@ -1,8 +1,12 @@
 import numpy as np
+import random
+import matplotlib.pyplot as plt
+
 
 # Define the Gaussian function (PDF)
 def gaussian(x, mu, sigma, weight):
     return weight / (np.sqrt(2 * np.pi * sigma**2)) * np.exp(-((x - mu)**2) / (2 * sigma**2))
+
 
 # Parameters for A(x), B(x), C(x)
 params = [
@@ -56,6 +60,13 @@ def bisection_method(p, lower=-100, upper=100, tol=1e-6, max_iter=1000):
     raise ValueError("Bisection method did not converge.")
 
 # Example: Find the quantile corresponding to a cumulative probability p = 0.95
-p = 0.2
-quantile_value = bisection_method(p)
-print(f"Quantile corresponding to p = {p}: {quantile_value}")
+values = []
+for _ in range(1_000):
+    quantile_value = bisection_method(random.random())
+    values.append(quantile_value)
+
+plt.hist(values, bins=100)
+plt.show()
+
+print(f"average quantile value is {sum(values) / len(values)}")
+# print(f"Quantile corresponding to p = {p}: {quantile_value}")
