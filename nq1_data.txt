@@ -1,4 +1,3 @@
-	Waiting pedestrians	Total pedestrians
 2	0	1
 3	0	1
 4	0	0
