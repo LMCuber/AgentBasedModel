@@ -7,7 +7,6 @@ with open("nq4_data.txt") as f:
 import matplotlib.pyplot as plt
 
 
-
 plt.style.use('ggplot')
 plt.xticks([1, 2, 3, 4])
 

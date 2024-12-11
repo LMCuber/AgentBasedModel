@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 from pprint import pprint
 
 
+
 datas = []
 with open("arrivals.txt") as f:
     prev_line = None
@@ -14,6 +15,11 @@ with open("arrivals.txt") as f:
             else:
                 datas[-1].append(line)
             prev_line = line
+
+
+with open("arrivals_flattened.txt", "w") as f:
+    print([j for sub in datas for j in sub], file=f)
+
 
 cumulative = []
 freqs = []
@@ -28,4 +34,4 @@ for i, data in enumerate(datas):
 print(sum(freqs) / len(freqs))
 
 plt.hist(freqs, bins=100)
-plt.show()
+# plt.show()

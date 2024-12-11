@@ -65,8 +65,11 @@ for _ in range(1_000):
     quantile_value = bisection_method(random.random())
     values.append(quantile_value)
 
+print(sum(values) / len(values))
+
 plt.hist(values, bins=100)
 plt.show()
+
 
 print(f"average quantile value is {sum(values) / len(values)}")
 # print(f"Quantile corresponding to p = {p}: {quantile_value}")
