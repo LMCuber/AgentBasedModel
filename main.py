@@ -273,7 +273,7 @@ class Global:
                         g.running = False
                     
                     elif event.key == pygame.K_q:
-                        # print(ticks() - g.last)
+                        print(ticks() - g.last)
                         # g.running = False
                         peds = pool["areaQueueTicket"].pedestrians
                         for i in range(len(peds) - 1, -1, -1):
@@ -641,8 +641,8 @@ class Pedestrian:
         # general term
         self.r = 0.25 * g.grid
         # obstacle term
-        self.A_ob = 3
-        self.B_ob = 1
+        self.A_ob = 2
+        self.B_ob = 0.5
         self.follow_vectors = True
         self.passed_initiator = False
         # interactive term (with other pedestrians)
@@ -958,9 +958,6 @@ class Area(Node):
         #
         ped.area = self
         
-        if self.name == "areaWait":
-            print(ticks() - ped.last_in_queue, end=", ")
-
         ped.pving = False
         ped.passed_initiator = False
         if self.wait_mode == "queue":
